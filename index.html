@@ -1,16 +1,15 @@
 <!DOCTYPE html>
 <html><head><title>Marble Madness 3D PWA</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#ffaa00"><style>body{margin:0;background:#111;font-family:sans-serif;overflow:hidden;}canvas{display:block;}#info{position:absolute;top:10px;left:10px;color:#fff;font-size:14px;z-index:100;}</style></head><body>
 <div id="info">Tilt phone or WASD/Arrows. Tap to enable sensors. Install as app!</div>
-<script src="https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.min.js"></script>
-<script>
-// Aspetta che Three.js sia caricato
-document.addEventListener('DOMContentLoaded', () => {
+<script type="module">
+import * as THREE from './three.module.min.js';
+
 let scene,camera,renderer,marble,vel,walls=[],tiltX=0,tiltY=0,keys={},hasTilt=false,radius=0.5,accel=30,fric=0.96,clock;
 const startPos=new THREE.Vector3(0,radius,0);
 
 // PWA: Dynamic manifest & SW blob
 if('serviceWorker' in navigator){
-  const swCode=`self.addEventListener('install',e=>{e.waitUntil(caches.open('marble-v1').then(c=>c.addAll(['https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.min.js'])))});self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`;
+  const swCode=`self.addEventListener('install',e=>{e.waitUntil(caches.open('marble-v1').then(c=>c.addAll(['./three.module.min.js'])))});self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`;
   const swBlob=new Blob([swCode],{type:'application/javascript'});
   navigator.serviceWorker.register(URL.createObjectURL(swBlob),{scope:'./'});
 }
@@ -80,5 +79,4 @@ function animate(){
   renderer.render(scene,camera);
 }
 init();
-});
 </script></body></html>
