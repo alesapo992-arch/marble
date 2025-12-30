@@ -1,54 +1,81 @@
 <!DOCTYPE html>
-<html><head><title>Marble Prototype</title><style>body{margin:0;background:#222;}canvas{border:2px solid #fff;touch-action:none;display:block;margin:10px auto;}</style></head>
-<body>
-<canvas id="c" width="400" height="600"></canvas>
+<html><head><title>Marble Madness 3D PWA</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#ffaa00"><style>body{margin:0;background:#111;font-family:sans-serif;overflow:hidden;}canvas{display:block;}#info{position:absolute;top:10px;left:10px;color:#fff;font-size:14px;z-index:100;}</style></head><body>
+<div id="info">Tilt phone or WASD/Arrows. Tap to enable sensors. Install as app!</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.min.js"></script>
 <script>
-const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
-let x=200,y=300,vx=0,vy=0,sens=0.5,fric=0.95,w=canvas.width,h=canvas.height;
-let tiltX=0,tiltY=0;
+let scene,camera,renderer,marble,vel,walls=[],tiltX=0,tiltY=0,keys={},hasTilt=false,radius=0.5,accel=30,fric=0.96,clock;
+const startPos=new THREE.Vector3(0,radius,0);
 
-// Richiedi permesso sensori (iOS/Android)
-async function reqPerm(){
+// PWA: Dynamic manifest & SW blob
+if('serviceWorker' in navigator){
+  const swCode=`self.addEventListener('install',e=>{e.waitUntil(caches.open('marble-v1').then(c=>c.addAll(['https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.min.js'])))});self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`;
+  const swBlob=new Blob([swCode],{type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(swBlob),{scope:'./'});
+}
+const manifest={name:'Marble Madness 3D',short_name:'Marble3D',icons:[{src:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48Y2lyY2xlIGN4PSI5NiIgY3k9Ijk2IiByPSI5MCIgZmlsbD0iI2ZmYWEwMCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjYiLz48L3N2Zz4=',sizes:'192x192',type:'image/svg+xml'}],start_url:'.',display:'standalone',background_color:'#111111',theme_color:'#ffaa00'};
+const manStr=JSON.stringify(manifest);
+const manBlob=new Blob([manStr],{type:'application/json'});
+const manUrl=URL.createObjectURL(manBlob);
+const link=document.createElement('link');link.rel='manifest';link.href=manUrl;document.head.appendChild(link);
+
+// Sensors permission (iOS)
+async function requestSensors(){
   if(typeof DeviceOrientationEvent.requestPermission==='function'){
-    const p=await DeviceOrientationEvent.requestPermission();if(p!=='granted')return false;
-  }return true;
+    const perm=await DeviceOrientationEvent.requestPermission();
+    if(perm==='granted')hasTilt=true;
+  }
 }
-document.body.addEventListener('click',async()=>{if(await reqPerm())window.addEventListener('deviceorientation',onTilt);}, {once:true});
-document.body.addEventListener('touchstart',async()=>{if(await reqPerm())window.addEventListener('deviceorientation',onTilt);}, {once:true});
+document.addEventListener('click',requestSensors,{once:true});
+document.addEventListener('touchstart',requestSensors,{once:true});
 
-// Tilt handler
-function onTilt(e){
-  tiltX=Math.max(-1,Math.min(1,e.gamma/30)); // Sinistra-destra
-  tiltY=Math.max(-1,Math.min(1,e.beta/30));   // Avanti-indietro
+function init(){
+  scene=new THREE.Scene();scene.background=new THREE.Color(0x111122);
+  camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,100);
+  renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.toneMapping=THREE.ACESFilmicToneMapping;document.body.appendChild(renderer.domElement);
+  clock=new THREE.Clock();
+  // Lights
+  scene.add(new THREE.AmbientLight(0x404040,0.4));
+  const dir=new THREE.DirectionalLight(0xffffff,1);dir.position.set(10,20,5);dir.castShadow=true;dir.shadow.mapSize.width=2048;dir.shadow.mapSize.height=2048;scene.add(dir);
+  // Floor
+  const floorGeo=new THREE.PlaneGeometry(40,40);const floorMat=new THREE.MeshLambertMaterial({color:0x335577});const floor=new THREE.Mesh(floorGeo,floorMat);floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+  // Marble
+  const marbleGeo=new THREE.SphereGeometry(radius,32,32);const marbleMat=new THREE.MeshPhongMaterial({color:0xffaa00,shininess:150});marble=new THREE.Mesh(marbleGeo,marbleMat);marble.castShadow=true;marble.position.copy(startPos);scene.add(marble);
+  vel=new THREE.Vector3();
+  // Maze walls (simple maze layout)
+  const wallMat=new THREE.MeshLambertMaterial({color:0x666688});function addWall(x,y,z,sx,sy,sz){const geo=new THREE.BoxGeometry(sx,sy,sz);const mesh=new THREE.Mesh(geo,wallMat);mesh.position.set(x,y,z);mesh.castShadow=mesh.receiveShadow=true;scene.add(mesh);const box=new THREE.Box3().setFromObject(mesh);walls.push(box);}
+  // Outer bounds
+  addWall(0,2,-20,42,4,2);addWall(0,2,20,42,4,2);addWall(-20,2,0,2,4,42);addWall(20,2,0,2,4,42);
+  // Inner maze
+  addWall(0,2,-12,14,4,2);addWall(10,2,0,2,4,16);addWall(-8,2,6,2,4,12);addWall(0,2,12,20,4,2);addWall(-12,2,-6,2,4,8);addWall(6,2,-8,12,4,2);addWall(12,2,8,2,4,10);
+  window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+  document.addEventListener('keydown',e=>keys[e.code]=1);document.addEventListener('keyup',e=>keys[e.code]=0);
+  window.addEventListener('deviceorientation',e=>{tiltX=Math.max(-1,Math.min(1,e.gamma/30));tiltY=Math.max(-1,Math.min(1,e.beta/30));hasTilt=true;});
+  animate();
 }
-
-// Tastiera fallback
-const keys={};
-document.addEventListener('keydown',e=>keys[e.key]='1');
-document.addEventListener('keyup',e=>keys[e.key]=0);
-function getKeys(){tiltX=(keys['ArrowRight']||keys['d']?1:0)-(keys['ArrowLeft']||keys['a']?1:0);tiltY=(keys['ArrowDown']||keys['s']?1:0)-(keys['ArrowUp']||keys['w']?1:0);}
-
-// Loop
-function loop(t){
-  ctx.fillStyle='#111';ctx.fillRect(0,0,w,h); // Sfondo
-  getKeys(); // Fallback
-  
-  // Fisica semplice
-  vx=(vx+tiltX*sens)*fric;vy=(vy+tiltY*sens)*fric;
-  x+=vx;y+=vy;
-  
-  // Rimbalzi
-  if(x<20||x>w-20){vx*=-1;x=Math.max(20,Math.min(w-20,x));}
-  if(y<20||y>h-20){vy*=-1;y=Math.max(20,Math.min(h-20,y));}
-  
-  // Disegna biglia
-  ctx.save();ctx.translate(x,y);
-  const grd=ctx.createRadialGradient(0,0,0,0,0,20);grd.addColorStop(0,'#fff');grd.addColorStop(1,'#f90');
-  ctx.fillStyle=grd;ctx.beginPath();ctx.arc(0,0,20,0,Math.PI*2);ctx.fill();
-  ctx.shadowColor='#fff';ctx.shadowBlur=10;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
-  ctx.restore();
-  
-  requestAnimationFrame(loop);
+function getInput(){if(hasTilt)return;tiltX=(keys['ArrowRight']||keys['KeyD']?1:0)-(keys['ArrowLeft']||keys['KeyA']?1:0);tiltY=(keys['ArrowDown']||keys['KeyS']?1:0)-(keys['ArrowUp']||keys['KeyW']?1:0);tiltX=Math.max(-1,Math.min(1,tiltX));tiltY=Math.max(-1,Math.min(1,tiltY));}
+function updatePhysics(dt){
+  getInput();
+  const force=new THREE.Vector3(tiltX*accel*dt,0,tiltY*accel*dt);vel.add(force);vel.multiplyScalar(fric);
+  const deltaPos=vel.clone().multiplyScalar(dt);const testPos=marble.position.clone().add(deltaPos);testPos.y=radius;
+  // Bounds reset
+  if(Math.abs(testPos.x)>18||Math.abs(testPos.z)>18){marble.position.copy(startPos);vel.set(0,0,0);return;}
+  // Collisions
+  let collided=false;for(let wall of walls){
+    if(wall.distanceToPoint(testPos)<radius){
+      const closest=new THREE.Vector3();wall.clampPoint(testPos,closest);const normal=new THREE.Vector3().subVectors(testPos,closest).normalize();vel.reflect(normal).multiplyScalar(0.8);collided=true;
+      const penetration=radius-wall.distanceToPoint(testPos)+0.01;marble.position.add(normal.multiplyScalar(penetration));break;
+    }
+  }if(!collided)marble.position.copy(testPos);
+  // Rolling rotation
+  const horizVel=vel.clone();horizVel.y=0;const speed=horizVel.length();if(speed>0.001){
+    const dir=horizVel.normalize();const axis=(new THREE.Vector3(0,1,0)).cross(dir).normalize();const angle=speed/radius*dt;marble.rotateOnAxis(axis,angle);
+  }
 }
-loop();
+function animate(){
+  requestAnimationFrame(animate);const dt=clock.getDelta();updatePhysics(dt);
+  // Camera follow (isometric)
+  const targetCamPos=new THREE.Vector3(marble.position.x-8,marble.position.y+12,marble.position.z+8);camera.position.lerp(targetCamPos,0.08);camera.lookAt(marble.position);
+  renderer.render(scene,camera);
+}
+init();
 </script></body></html>
