@@ -3,6 +3,8 @@
 <div id="info">Tilt phone or WASD/Arrows. Tap to enable sensors. Install as app!</div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.min.js"></script>
 <script>
+// Aspetta che Three.js sia caricato
+document.addEventListener('DOMContentLoaded', () => {
 let scene,camera,renderer,marble,vel,walls=[],tiltX=0,tiltY=0,keys={},hasTilt=false,radius=0.5,accel=30,fric=0.96,clock;
 const startPos=new THREE.Vector3(0,radius,0);
 
@@ -78,4 +80,5 @@ function animate(){
   renderer.render(scene,camera);
 }
 init();
+});
 </script></body></html>
