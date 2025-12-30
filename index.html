@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html><head><title>Marble Prototype</title><style>body{margin:0;background:#222;}canvas{border:2px solid #fff;touch-action:none;display:block;margin:10px auto;}</style></head>
+<body>
+<canvas id="c" width="400" height="600"></canvas>
+<script>
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+let x=200,y=300,vx=0,vy=0,sens=0.5,fric=0.95,w=canvas.width,h=canvas.height;
+let tiltX=0,tiltY=0;
+
+// Richiedi permesso sensori (iOS/Android)
+async function reqPerm(){
+  if(typeof DeviceOrientationEvent.requestPermission==='function'){
+    const p=await DeviceOrientationEvent.requestPermission();if(p!=='granted')return false;
+  }return true;
+}
+document.body.addEventListener('click',async()=>{if(await reqPerm())window.addEventListener('deviceorientation',onTilt);}, {once:true});
+document.body.addEventListener('touchstart',async()=>{if(await reqPerm())window.addEventListener('deviceorientation',onTilt);}, {once:true});
+
+// Tilt handler
+function onTilt(e){
+  tiltX=Math.max(-1,Math.min(1,e.gamma/30)); // Sinistra-destra
+  tiltY=Math.max(-1,Math.min(1,e.beta/30));   // Avanti-indietro
+}
+
+// Tastiera fallback
+const keys={};
+document.addEventListener('keydown',e=>keys[e.key]='1');
+document.addEventListener('keyup',e=>keys[e.key]=0);
+function getKeys(){tiltX=(keys['ArrowRight']||keys['d']?1:0)-(keys['ArrowLeft']||keys['a']?1:0);tiltY=(keys['ArrowDown']||keys['s']?1:0)-(keys['ArrowUp']||keys['w']?1:0);}
+
+// Loop
+function loop(t){
+  ctx.fillStyle='#111';ctx.fillRect(0,0,w,h); // Sfondo
+  getKeys(); // Fallback
+  
+  // Fisica semplice
+  vx=(vx+tiltX*sens)*fric;vy=(vy+tiltY*sens)*fric;
+  x+=vx;y+=vy;
+  
+  // Rimbalzi
+  if(x<20||x>w-20){vx*=-1;x=Math.max(20,Math.min(w-20,x));}
+  if(y<20||y>h-20){vy*=-1;y=Math.max(20,Math.min(h-20,y));}
+  
+  // Disegna biglia
+  ctx.save();ctx.translate(x,y);
+  const grd=ctx.createRadialGradient(0,0,0,0,0,20);grd.addColorStop(0,'#fff');grd.addColorStop(1,'#f90');
+  ctx.fillStyle=grd;ctx.beginPath();ctx.arc(0,0,20,0,Math.PI*2);ctx.fill();
+  ctx.shadowColor='#fff';ctx.shadowBlur=10;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  ctx.restore();
+  
+  requestAnimationFrame(loop);
+}
+loop();
+</script></body></html>
