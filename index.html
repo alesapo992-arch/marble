@@ -1,20 +1,23 @@
 <!DOCTYPE html>
-<html><head><title>Marble Madness 3D PWA</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#ffaa00"><style>body{margin:0;background:#111;font-family:sans-serif;overflow:hidden;}canvas{display:block;}#info{position:absolute;top:10px;left:10px;color:#fff;font-size:14px;z-index:100;}</style></head><body>
+<html><head><title>Marble Madness 3D PWA</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#ff3399"><style>body{margin:0;background:#111;font-family:sans-serif;overflow:hidden;}canvas{display:block;}#info{position:absolute;top:10px;left:10px;color:#fff;font-size:14px;z-index:100;}</style></head><body>
 <div id="info">Tilt phone or WASD/Arrows. Tap to enable sensors. Install as app!</div>
 <script type="module">
-import * as THREE from './three.module.min.js';
+import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import * as CANNON from 'https://unpkg.com/cannon-es';
 
-let scene,camera,renderer,marble,vel,walls=[],tiltX=0,tiltY=0,targetTiltX=0,targetTiltY=0,keys={},hasTilt=false,radius=0.5,accel=25,fric=0.98,clock;
+let scene,camera,renderer,marble,tiltX=0,tiltY=0,targetTiltX=0,targetTiltY=0,keys={},hasTilt=false,radius=0.5,accel=25,clock;
 const startPos=new THREE.Vector3(0,radius,0);
-let particles = [];
+let particles = [], world, marbleBody, groundMaterial, marbleMaterial, particleSystem;
+const fixedTimeStep = 1 / 60;
+let accumulator = 0;
 
 // PWA: Dynamic manifest & SW blob
 if('serviceWorker' in navigator){
-  const swCode=`self.addEventListener('install',e=>{e.waitUntil(caches.open('marble-v1').then(c=>c.addAll(['./three.module.min.js'])))});self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`;
+  const swCode=`self.addEventListener('install',e=>{e.waitUntil(caches.open('marble-v1').then(c=>c.addAll(['https://unpkg.com/three@0.160.0/build/three.module.js','https://unpkg.com/cannon-es'])))});self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`;
   const swBlob=new Blob([swCode],{type:'application/javascript'});
   navigator.serviceWorker.register(URL.createObjectURL(swBlob),{scope:'./'});
 }
-const manifest={name:'Marble Madness 3D',short_name:'Marble3D',icons:[{src:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48Y2lyY2xlIGN4PSI5NiIgY3k9Ijk2IiByPSI5MCIgZmlsbD0iI2ZmYWEwMCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjYiLz48L3N2Zz4=',sizes:'192x192',type:'image/svg+xml'}],start_url:'.',display:'standalone',background_color:'#111111',theme_color:'#ffaa00'};
+const manifest={name:'Marble Madness 3D',short_name:'Marble3D',icons:[{src:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48Y2lyY2xlIGN4PSI5NiIgY3k9Ijk2IiByPSI5MCIgZmlsbD0iI2ZmYWEwMCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjYiLz48L3N2Zz4=',sizes:'192x192',type:'image/svg+xml'}],start_url:'.',display:'standalone',background_color:'#220044',theme_color:'#ff3399'};
 const manStr=JSON.stringify(manifest);
 const manBlob=new Blob([manStr],{type:'application/json'});
 const manUrl=URL.createObjectURL(manBlob);
@@ -42,8 +45,6 @@ function createParticleSystem() {
   return { system, geometry, active: 0 };
 }
 
-let particleSystem;
-
 function emitParticles(position, normal, count = 20) {
   const vertices = particleSystem.geometry.attributes.position.array;
   const colors = particleSystem.geometry.attributes.color.array;
@@ -55,7 +56,7 @@ function emitParticles(position, normal, count = 20) {
     colors[idx] = 1; colors[idx + 1] = 1; colors[idx + 2] = 0.5; // Yellowish
     particles.push({
       index: particleSystem.active,
-      velocity: new THREE.Vector3((Math.random() - 0.5) * 2, Math.random() * 2 + 1, (Math.random() - 0.5) * 2).add(normal.multiplyScalar(0.5)),
+      velocity: new THREE.Vector3((Math.random() - 0.5) * 2, Math.random() * 2 + 1, (Math.random() - 0.5) * 2).add(normal.clone().multiplyScalar(0.5)),
       lifetime: 1 + Math.random() * 0.5
     });
     particleSystem.active = (particleSystem.active + 1) % 1000;
@@ -83,24 +84,60 @@ function updateParticles(dt) {
 }
 
 function init(){
-  scene=new THREE.Scene();scene.background=new THREE.Color(0x111122);
+  scene=new THREE.Scene();scene.background=new THREE.Color(0x220044);
   camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,100);
   renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.toneMapping=THREE.ACESFilmicToneMapping;document.body.appendChild(renderer.domElement);
   clock=new THREE.Clock();
   // Lights
-  scene.add(new THREE.AmbientLight(0x404040,0.4));
-  const dir=new THREE.DirectionalLight(0xffffff,1);dir.position.set(10,20,5);dir.castShadow=true;dir.shadow.mapSize.width=2048;dir.shadow.mapSize.height=2048;scene.add(dir);
+  scene.add(new THREE.AmbientLight(0xffffff,0.6));
+  const dir=new THREE.DirectionalLight(0xffffff,1.5);dir.position.set(10,20,5);dir.castShadow=true;dir.shadow.mapSize.width=2048;dir.shadow.mapSize.height=2048;scene.add(dir);
+  // Physics world
+  world = new CANNON.World({ allowSleep: false });
+  world.gravity.set(0, -30, 0);
+  groundMaterial = new CANNON.Material('ground');
+  marbleMaterial = new CANNON.Material('marble');
+  const contactMat = new CANNON.ContactMaterial(groundMaterial, marbleMaterial, { friction: 0.1, restitution: 0.7 });
+  world.addContactMaterial(contactMat);
   // Floor
-  const floorGeo=new THREE.PlaneGeometry(40,40);const floorMat=new THREE.MeshLambertMaterial({color:0x335577});const floor=new THREE.Mesh(floorGeo,floorMat);floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+  const floorGeo=new THREE.PlaneGeometry(40,40);const floorMat=new THREE.MeshLambertMaterial({color:0x00ff99});const floor=new THREE.Mesh(floorGeo,floorMat);floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+  const floorShape = new CANNON.Plane();
+  const floorBody = new CANNON.Body({ mass: 0, material: groundMaterial });
+  floorBody.addShape(floorShape);
+  floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+  world.addBody(floorBody);
   // Marble
-  const marbleGeo=new THREE.SphereGeometry(radius,64,64);const marbleMat=new THREE.MeshPhongMaterial({color:0xffaa00,shininess:150});marble=new THREE.Mesh(marbleGeo,marbleMat);marble.castShadow=true;marble.position.copy(startPos);scene.add(marble);
-  vel=new THREE.Vector3();
-  // Maze walls (simple maze layout)
-  const wallMat=new THREE.MeshLambertMaterial({color:0x666688});function addWall(x,y,z,sx,sy,sz){const geo=new THREE.BoxGeometry(sx,sy,sz);const mesh=new THREE.Mesh(geo,wallMat);mesh.position.set(x,y,z);mesh.castShadow=mesh.receiveShadow=true;scene.add(mesh);const box=new THREE.Box3().setFromObject(mesh);walls.push(box);}
+  const marbleGeo=new THREE.SphereGeometry(radius,64,64);const marbleMat=new THREE.MeshPhongMaterial({color:0xffff33,shininess:150});marble=new THREE.Mesh(marbleGeo,marbleMat);marble.castShadow=true;marble.position.copy(startPos);scene.add(marble);
+  const marbleShape = new CANNON.Sphere(radius);
+  marbleBody = new CANNON.Body({ mass: 1, material: marbleMaterial });
+  marbleBody.addShape(marbleShape);
+  marbleBody.position.copy(startPos);
+  world.addBody(marbleBody);
+  marbleBody.addEventListener('collide', (event) => {
+    const contact = event.contact;
+    const impactPoint = marbleBody.position.vadd(contact.ri);
+    const normal = contact.ni.negate();
+    emitParticles(new THREE.Vector3(impactPoint.x, impactPoint.y, impactPoint.z), new THREE.Vector3(normal.x, normal.y, normal.z));
+  });
+  // Maze walls and obstacles
+  const wallMat=new THREE.MeshLambertMaterial({color:0xff3399}); 
+  function addWall(x,y,z,sx,sy,sz, rx=0,ry=0,rz=0){
+    const geo=new THREE.BoxGeometry(sx,sy,sz);const mesh=new THREE.Mesh(geo,wallMat);mesh.position.set(x,y,z);mesh.rotation.set(rx,ry,rz);mesh.castShadow=mesh.receiveShadow=true;scene.add(mesh);
+    const shape=new CANNON.Box(new CANNON.Vec3(sx/2,sy/2,sz/2));const body=new CANNON.Body({mass:0, material: groundMaterial});body.addShape(shape);body.position.set(x,y,z);body.quaternion.setFromEuler(rx,ry,rz);world.addBody(body);
+  }
   // Outer bounds
   addWall(0,2,-20,42,4,2);addWall(0,2,20,42,4,2);addWall(-20,2,0,2,4,42);addWall(20,2,0,2,4,42);
   // Inner maze
   addWall(0,2,-12,14,4,2);addWall(10,2,0,2,4,16);addWall(-8,2,6,2,4,12);addWall(0,2,12,20,4,2);addWall(-12,2,-6,2,4,8);addWall(6,2,-8,12,4,2);addWall(12,2,8,2,4,10);
+  // Ramps
+  addWall(-10,1,0,8,0.2,8, 0,0,Math.PI/6); // Gentle ramp
+  addWall(10,1,5,8,0.2,8, 0,0,-Math.PI/6); // Another ramp
+  // Obstacles (e.g., cylinder)
+  const obsMat = new THREE.MeshLambertMaterial({color:0xff9900});
+  const obsGeo = new THREE.CylinderGeometry(1,1,4,32); const obsMesh = new THREE.Mesh(obsGeo, obsMat); obsMesh.position.set(5,2,0); obsMesh.castShadow=obsMesh.receiveShadow=true; scene.add(obsMesh);
+  const obsShape = new CANNON.Cylinder(1,1,4,32); const obsBody = new CANNON.Body({mass:0, material: groundMaterial}); obsBody.addShape(obsShape); obsBody.position.set(5,2,0); world.addBody(obsBody);
+  // Another obstacle
+  const obsGeo2 = new THREE.SphereGeometry(1.5,32,32); const obsMesh2 = new THREE.Mesh(obsGeo2, obsMat); obsMesh2.position.set(-5,1.5,-5); obsMesh2.castShadow=obsMesh2.receiveShadow=true; scene.add(obsMesh2);
+  const obsShape2 = new CANNON.Sphere(1.5); const obsBody2 = new CANNON.Body({mass:0, material: groundMaterial}); obsBody2.addShape(obsShape2); obsBody2.position.set(-5,1.5,-5); world.addBody(obsBody2);
   window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
   document.addEventListener('keydown',e=>keys[e.code]=1);document.addEventListener('keyup',e=>keys[e.code]=0);
   window.addEventListener('deviceorientation',e=>{targetTiltX=Math.max(-1,Math.min(1,e.gamma/30));targetTiltY=Math.max(-1,Math.min(1,e.beta/30));hasTilt=true;});
@@ -110,24 +147,23 @@ function init(){
 function getInput(){if(hasTilt)return;targetTiltX=(keys['ArrowRight']||keys['KeyD']?1:0)-(keys['ArrowLeft']||keys['KeyA']?1:0);targetTiltY=(keys['ArrowDown']||keys['KeyS']?1:0)-(keys['ArrowUp']||keys['KeyW']?1:0);targetTiltX=Math.max(-1,Math.min(1,targetTiltX));targetTiltY=Math.max(-1,Math.min(1,targetTiltY));}
 function updatePhysics(dt){
   getInput();
-  tiltX += (targetTiltX - tiltX) * 0.2; // Smooth tilt interpolation
+  tiltX += (targetTiltX - tiltX) * 0.2;
   tiltY += (targetTiltY - tiltY) * 0.2;
-  const force=new THREE.Vector3(tiltX*accel*dt,0,tiltY*accel*dt);vel.add(force);vel.multiplyScalar(fric);
-  const deltaPos=vel.clone().multiplyScalar(dt);const testPos=marble.position.clone().add(deltaPos);testPos.y=radius;
+  accumulator += dt;
+  while (accumulator >= fixedTimeStep) {
+    const gx = tiltX * 30;
+    const gz = tiltY * 30;
+    world.gravity.set(gx, -30, gz);
+    world.step(fixedTimeStep);
+    accumulator -= fixedTimeStep;
+  }
+  marble.position.copy(marbleBody.position);
+  marble.quaternion.copy(marbleBody.quaternion);
   // Bounds reset
-  if(Math.abs(testPos.x)>18||Math.abs(testPos.z)>18){marble.position.copy(startPos);vel.set(0,0,0);return;}
-  // Collisions
-  let collided=false;for(let wall of walls){
-    if(wall.distanceToPoint(testPos)<radius){
-      const closest=new THREE.Vector3();wall.clampPoint(testPos,closest);const normal=new THREE.Vector3().subVectors(testPos,closest).normalize();vel.reflect(normal).multiplyScalar(0.7);collided=true;
-      const penetration=radius-wall.distanceToPoint(testPos)+0.01;marble.position.add(normal.multiplyScalar(penetration));
-      emitParticles(closest, normal); // Emit particles at collision point
-      break;
-    }
-  }if(!collided)marble.position.copy(testPos);
-  // Rolling rotation
-  const horizVel=vel.clone();horizVel.y=0;const speed=horizVel.length();if(speed>0.001){
-    const dir=horizVel.normalize();const axis=(new THREE.Vector3(0,1,0)).cross(dir).normalize();const angle=speed/radius*dt;marble.rotateOnAxis(axis,angle);
+  if (Math.abs(marble.position.x) > 18 || Math.abs(marble.position.z) > 18) {
+    marbleBody.position.copy(startPos);
+    marbleBody.velocity.set(0, 0, 0);
+    marbleBody.angularVelocity.set(0, 0, 0);
   }
   updateParticles(dt);
 }
