@@ -1,46 +1,84 @@
 <!DOCTYPE html>
-<html><head><title>Marble Madness 3D PWA</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#ffaa00"><style>body{margin:0;background:#111;font-family:sans-serif;overflow:hidden;}canvas{display:block;}#ui{position:absolute;top:20px;left:20px;color:#fff;font-size:28px;font-weight:bold;text-shadow:2px 2px 4px #000;z-index:100;}#info{position:absolute;top:10px;right:10px;color:#fff;font-size:14px;z-index:100;}</style></head><body>
-<div id="ui">Time: 90</div>
-<div id="info">Tilt / WASD. R: Restart. Reach green finish!</div>
+<html><head><title>Marble Madness 3D PWA</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#ffaa00"><style>body{margin:0;background:#111;font-family:sans-serif;overflow:hidden;}canvas{display:block;}#info{position:absolute;top:10px;left:10px;color:#fff;font-size:14px;z-index:100;}</style></head><body>
+<div id="info">Tilt phone or WASD/Arrows. Tap to enable sensors. Install as app!</div>
 <script type="module">
 import * as THREE from './three.module.min.js';
 
-let scene, camera, renderer, marble, vel, groundMeshes=[], wallBoxes=[], enemies=[], tiltX=0, tiltY=0, keys={}, hasTilt=false, radius=0.5, accel=45, gravity=28, airFric=0.995;
-let raycaster, clock, timeLeft=90, gameState='menu', startPos, finishBox, ui;
-const segments=[{type:'ramp',len:35,width:12,tilt:-0.18,zOff:-10},{type:'straight',len:25,width:10,zOff:-45},{type:'curve',dir:1,radius:18,len:30,width:9,zOff:-70},{type:'narrow',len:18,width:2.8,zOff:-95},{type:'ice',len:22,width:2.8,zOff:-110,ice:true},{type:'ramp_up',len:25,width:5,tilt:0.22,zOff:-130}];
+let scene,camera,renderer,marble,vel,walls=[],tiltX=0,tiltY=0,targetTiltX=0,targetTiltY=0,keys={},hasTilt=false,radius=0.5,accel=25,fric=0.98,clock;
+const startPos=new THREE.Vector3(0,radius,0);
 
-// PWA
-if('serviceWorker' in navigator){const swCode=`self.addEventListener('install',e=>{e.waitUntil(caches.open('marble-v2').then(c=>c.addAll(['./three.module.min.js'])))});self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`;const swBlob=new Blob([swCode],{type:'application/javascript'});navigator.serviceWorker.register(URL.createObjectURL(swBlob),{scope:'./'});}
-const manifest={name:'Marble Madness Remake',short_name:'Marble3D',icons:[{src:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48Y2lyY2xlIGN4PSI5NiIgY3k9Ijk2IiByPSI5MCIgZmlsbD0iI2ZmYWEwMCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjYiLz48L3N2Zz4=',sizes:'192x192',type:'image/svg+xml'}],start_url:'.',display:'standalone',background_color:'#111111',theme_color:'#ffaa00'};const manStr=JSON.stringify(manifest);const manBlob=new Blob([manStr],{type:'application/json'});const manUrl=URL.createObjectURL(manBlob);const link=document.createElement('link');link.rel='manifest';link.href=manUrl;document.head.appendChild(link);
+// PWA: Dynamic manifest & SW blob
+if('serviceWorker' in navigator){
+  const swCode=`self.addEventListener('install',e=>{e.waitUntil(caches.open('marble-v1').then(c=>c.addAll(['./three.module.min.js'])))});self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`;
+  const swBlob=new Blob([swCode],{type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(swBlob),{scope:'./'});
+}
+const manifest={name:'Marble Madness 3D',short_name:'Marble3D',icons:[{src:'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48Y2lyY2xlIGN4PSI5NiIgY3k9Ijk2IiByPSI5MCIgZmlsbD0iI2ZmYWEwMCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjYiLz48L3N2Zz4=',sizes:'192x192',type:'image/svg+xml'}],start_url:'.',display:'standalone',background_color:'#111111',theme_color:'#ffaa00'};
+const manStr=JSON.stringify(manifest);
+const manBlob=new Blob([manStr],{type:'application/json'});
+const manUrl=URL.createObjectURL(manBlob);
+const link=document.createElement('link');link.rel='manifest';link.href=manUrl;document.head.appendChild(link);
 
-// Sensors
-async function requestSensors(){if(typeof DeviceOrientationEvent.requestPermission==='function'){const perm=await DeviceOrientationEvent.requestPermission();if(perm==='granted')hasTilt=true;}}
-document.addEventListener('click',requestSensors,{once:true});document.addEventListener('touchstart',requestSensors,{once:true});
+// Sensors permission (iOS)
+async function requestSensors(){
+  if(typeof DeviceOrientationEvent.requestPermission==='function'){
+    const perm=await DeviceOrientationEvent.requestPermission();
+    if(perm==='granted')hasTilt=true;
+  }
+}
+document.addEventListener('click',requestSensors,{once:true});
+document.addEventListener('touchstart',requestSensors,{once:true});
 
-function init(){scene=new THREE.Scene();scene.background=new THREE.Color(0x112244);camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,200);renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;document.body.appendChild(renderer.domElement);clock=new THREE.Clock();raycaster=new THREE.Raycaster();
-// Lights
-scene.add(new THREE.AmbientLight(0x606060,0.4));const dir=new THREE.DirectionalLight(0xffffff,1.2);dir.position.set(20,30,10);dir.castShadow=true;dir.shadow.mapSize.set(1024,1024);dir.shadow.camera.near=0.5;dir.shadow.camera.far=100;dir.shadow.camera.left=-30;dir.shadow.camera.right=30;dir.shadow.camera.top=30;dir.shadow.camera.bottom=-30;scene.add(dir);
-// Marble
-const marbleGeo=new THREE.SphereGeometry(radius,24,24);const marbleMat=new THREE.MeshPhongMaterial({color:0xffaa00,shininess:200,specular:0xffffff});marble=new THREE.Mesh(marbleGeo,marbleMat);marble.castShadow=true;scene.add(marble);vel=new THREE.Vector3();
-// Build level
-buildLevel();
-// Finish
-const finishGeo=new THREE.CylinderGeometry(1.8,1.8,6,12);const finishMat=new THREE.MeshBasicMaterial({color:0x00ff88,transparent:true,opacity:0.6});const finishMesh=new THREE.Mesh(finishGeo,finishMat);finishMesh.position.set(12,3.5,-142);scene.add(finishMesh);finishBox=new THREE.Box3().setFromObject(finishMesh);
-// UI
-ui=document.getElementById('ui');window.addEventListener('resize',onResize);document.addEventListener('keydown',e=>keys[e.code]=1);document.addEventListener('keyup',e=>keys[e.code]=0);window.addEventListener('deviceorientation',e=>{tiltX=Math.max(-1,Math.min(1,(e.gamma||0)/30));tiltY=Math.max(-1,Math.min(1,(e.beta||0)/30));hasTilt=true;});startGame();}
-function buildLevel(){groundMeshes.forEach(m=>scene.remove(m));wallBoxes=[];groundMeshes=[];enemies.forEach(e=>scene.remove(e));enemies=[];const normalMat=new THREE.MeshLambertMaterial({color:0x88aabb});const iceMat=new THREE.MeshLambertMaterial({color:0x66ddff});function addGround(x,z,yrot,width,len,tiltX,isIce){const geo=new THREE.PlaneGeometry(width,len,4,4);const mat=isIce?iceMat:normalMat;mat.userData={friction:isIce?0.998:0.92};const mesh=new THREE.Mesh(geo,mat);mesh.rotation.x=-Math.PI/2+tiltX;mesh.rotation.z=yrot;mesh.position.set(x,0,z);mesh.receiveShadow=true;mesh.castShadow=true;scene.add(mesh);groundMeshes.push(mesh);if(width<5)addWalls(x,z,width,len,yrot,tiltX);}function addWalls(x,z,width,l,yrot,tilt){const wallMat=new THREE.MeshLambertMaterial({color:0x666688});const thick=0.4;[-width/2,width/2].forEach(off=>{const geo=new THREE.BoxGeometry(thick,0.3,l+2);const mesh=new THREE.Mesh(geo,wallMat);mesh.position.set(x+off,0.15,z);mesh.rotation.z=yrot;mesh.rotation.x=tilt;mesh.castShadow=mesh.receiveShadow=true;scene.add(mesh);const box=new THREE.Box3().setFromObject(mesh);wallBoxes.push(box);});}// Procedural track
-let curZ=-20,curX=0,curYRot=0;for(let seg of segments){const numSubs=Math.ceil(seg.len/8);const subLen=seg.len/numSubs;const isIce=seg.ice;for(let i=0;i<numSubs;i++){const frac=(i+0.5)/numSubs;let subX=curX;let subZ=curZ-subLen*frac;let subYRot=curYRot;let subTilt=seg.tilt||0;if(seg.type==='curve'){const angle=frac*(Math.PI/2);subX+=seg.radius*(1-Math.cos(angle))*seg.dir;subZ-=seg.radius*Math.sin(angle);subYRot+=angle*seg.dir;}addGround(subX,subZ,subYRot,seg.width,subLen,subTilt,isIce);}curZ-=seg.len;if(seg.type==='curve')curX+=seg.radius*(1-Math.cos(Math.PI/2))*seg.dir,curYRot+=Math.PI/2*seg.dir;}// EnemiesstartPos=new THREE.Vector3(0,radius,-15);createEnemy([[0,-35,0],[0,-25,0]],1.2);createEnemy([[10,-5,0],[14,-5,0]],1.5);}
-function createEnemy(patrol,speed){const geo=new THREE.SphereGeometry(0.7);const mat=new THREE.MeshPhongMaterial({color:0x111111});const mesh=new THREE.Mesh(geo,mat);mesh.castShadow=true;scene.add(mesh);mesh.userData={patrol:patrol.map(p=>new THREE.Vector3(p[0],0.7,p[2])),t:0,speed:speed};enemies.push(mesh);}
-function startGame(){gameState='playing';timeLeft=90;marble.position.copy(startPos);vel.set(0,0,0);}
-function reset(){marble.position.copy(startPos);vel.set(0,0,0);timeLeft=90;}
-function onResize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}
-function getInput(){if(hasTilt)return;tiltX=(keys['ArrowRight']||keys['KeyD']?1:0)-(keys['ArrowLeft']||keys['KeyA']?1:0);tiltY=(keys['ArrowDown']||keys['KeyS']?1:0)-(keys['ArrowUp']||keys['KeyW']?1:0);tiltX*=0.8;tiltY*=0.8;}
-let accumulator=0,fixedDt=1/60;function updatePhysics(dt){accumulator+=dt;while(accumulator>=fixedDt){if(gameState!=='playing')return;getInput();const tiltForce=new THREE.Vector3(tiltX*accel,0,tiltY*accel);vel.add(tiltForce.multiplyScalar(fixedDt));vel.y-=gravity*fixedDt;vel.multiplyScalar(airFric);const deltaPos=vel.clone().multiplyScalar(fixedDt);let newPos=marble.position.clone().add(deltaPos);const rayStart=newPos.clone();rayStart.y+=radius*3;raycaster.set(rayStart,new THREE.Vector3(0,-1,0));raycaster.far=60;const hits=raycaster.intersectObjects(groundMeshes);let onGround=false;if(hits.length){const hit=hits[0];const projY=hit.point.y+radius;const pen=projY-newPos.y;if(pen>0){newPos.y=projY;const normal=hit.face.normal.clone().applyMatrix4(hit.object.matrixWorld);vel.reflect(normal).multiplyScalar(0.4);const horizVel=vel.clone().projectOnPlane(normal);horizVel.multiplyScalar(hit.object.material.userData.friction||0.92);vel.copy(horizVel).add(new THREE.Vector3(0,Math.abs(vel.y)*0.3,0));onGround=true;}}// Wallsfor(let box of wallBoxes){if(box.distanceToPoint(newPos)<radius){const closest=new THREE.Vector3();box.clampPoint(newPos,closest);const norm=newPos.clone().sub(closest).normalize();vel.reflect(norm).multiplyScalar(0.7);const pen=radius-box.distanceToPoint(newPos)+0.02;newPos.add(norm.multiplyScalar(pen));break;}}// Enemiesfor(let enemy of enemies){const dist=newPos.distanceTo(enemy.position);if(dist<radius+0.7){const norm=newPos.clone().sub(enemy.position).normalize();vel.add(norm.multiplyScalar(15*fixedDt));const eNorm=enemy.position.clone().sub(newPos).normalize();enemy.position.add(eNorm.multiplyScalar(8*fixedDt));vel.multiplyScalar(0.6);break;}}// Finishif(finishBox.distanceToPoint(newPos)<1.5){gameState='win';ui.textContent='Level Complete! Press R to Restart';return;}// Fallen y checkif(newPos.y<-8){reset();}marble.position.copy(newPos);
-// Rolling rotation
-const horizVel=vel.clone();horizVel.y=0;const speed=horizVel.length();if(speed>0.01){const dir=horizVel.normalize();const axis=new THREE.Vector3(0,1,0).cross(dir).normalize();const angle=speed/radius*fixedDt;marble.rotateOnAxis(axis,angle);}accumulator-=fixedDt;}}
-function updateEnemies(dt){for(let enemy of enemies){let t=enemy.userData.t+dt*enemy.userData.speed;const pts=enemy.userData.patrol;if(t>1){t=2-t;}enemy.userData.t=t;enemy.position.lerpVectors(pts[0],pts[1],t);}}
-function updateUI(dt){if(gameState==='playing')timeLeft-=dt;document.getElementById('ui').textContent=`Time: ${Math.max(0,Math.ceil(timeLeft))}`;}
-function animate(){requestAnimationFrame(animate);const dt=clock.getDelta();updatePhysics(dt);updateEnemies(dt);updateUI(dt);if(gameState==='playing'){const targetPos=new THREE.Vector3(marble.position.x-12,marble.position.y+22,marble.position.z+18);camera.position.lerp(targetPos,0.1);camera.lookAt(marble.position.x,marble.position.y,marble.position.z);}renderer.render(scene,camera);}
-document.addEventListener('keydown',e=>{if(e.code==='KeyR')reset();if(gameState!=='playing'&&e.code==='Space')startGame();});
+function init(){
+  scene=new THREE.Scene();scene.background=new THREE.Color(0x111122);
+  camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,100);
+  renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.toneMapping=THREE.ACESFilmicToneMapping;document.body.appendChild(renderer.domElement);
+  clock=new THREE.Clock();
+  // Lights
+  scene.add(new THREE.AmbientLight(0x404040,0.4));
+  const dir=new THREE.DirectionalLight(0xffffff,1);dir.position.set(10,20,5);dir.castShadow=true;dir.shadow.mapSize.width=2048;dir.shadow.mapSize.height=2048;scene.add(dir);
+  // Floor
+  const floorGeo=new THREE.PlaneGeometry(40,40);const floorMat=new THREE.MeshLambertMaterial({color:0x335577});const floor=new THREE.Mesh(floorGeo,floorMat);floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+  // Marble
+  const marbleGeo=new THREE.SphereGeometry(radius,64,64);const marbleMat=new THREE.MeshPhongMaterial({color:0xffaa00,shininess:150});marble=new THREE.Mesh(marbleGeo,marbleMat);marble.castShadow=true;marble.position.copy(startPos);scene.add(marble);
+  vel=new THREE.Vector3();
+  // Maze walls (simple maze layout)
+  const wallMat=new THREE.MeshLambertMaterial({color:0x666688});function addWall(x,y,z,sx,sy,sz){const geo=new THREE.BoxGeometry(sx,sy,sz);const mesh=new THREE.Mesh(geo,wallMat);mesh.position.set(x,y,z);mesh.castShadow=mesh.receiveShadow=true;scene.add(mesh);const box=new THREE.Box3().setFromObject(mesh);walls.push(box);}
+  // Outer bounds
+  addWall(0,2,-20,42,4,2);addWall(0,2,20,42,4,2);addWall(-20,2,0,2,4,42);addWall(20,2,0,2,4,42);
+  // Inner maze
+  addWall(0,2,-12,14,4,2);addWall(10,2,0,2,4,16);addWall(-8,2,6,2,4,12);addWall(0,2,12,20,4,2);addWall(-12,2,-6,2,4,8);addWall(6,2,-8,12,4,2);addWall(12,2,8,2,4,10);
+  window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+  document.addEventListener('keydown',e=>keys[e.code]=1);document.addEventListener('keyup',e=>keys[e.code]=0);
+  window.addEventListener('deviceorientation',e=>{targetTiltX=Math.max(-1,Math.min(1,e.gamma/30));targetTiltY=Math.max(-1,Math.min(1,e.beta/30));hasTilt=true;});
+  animate();
+}
+function getInput(){if(hasTilt)return;targetTiltX=(keys['ArrowRight']||keys['KeyD']?1:0)-(keys['ArrowLeft']||keys['KeyA']?1:0);targetTiltY=(keys['ArrowDown']||keys['KeyS']?1:0)-(keys['ArrowUp']||keys['KeyW']?1:0);targetTiltX=Math.max(-1,Math.min(1,targetTiltX));targetTiltY=Math.max(-1,Math.min(1,targetTiltY));}
+function updatePhysics(dt){
+  getInput();
+  tiltX += (targetTiltX - tiltX) * 0.2; // Smooth tilt interpolation
+  tiltY += (targetTiltY - tiltY) * 0.2;
+  const force=new THREE.Vector3(tiltX*accel*dt,0,tiltY*accel*dt);vel.add(force);vel.multiplyScalar(fric);
+  const deltaPos=vel.clone().multiplyScalar(dt);const testPos=marble.position.clone().add(deltaPos);testPos.y=radius;
+  // Bounds reset
+  if(Math.abs(testPos.x)>18||Math.abs(testPos.z)>18){marble.position.copy(startPos);vel.set(0,0,0);return;}
+  // Collisions
+  let collided=false;for(let wall of walls){
+    if(wall.distanceToPoint(testPos)<radius){
+      const closest=new THREE.Vector3();wall.clampPoint(testPos,closest);const normal=new THREE.Vector3().subVectors(testPos,closest).normalize();vel.reflect(normal).multiplyScalar(0.7);collided=true;
+      const penetration=radius-wall.distanceToPoint(testPos)+0.01;marble.position.add(normal.multiplyScalar(penetration));break;
+    }
+  }if(!collided)marble.position.copy(testPos);
+  // Rolling rotation
+  const horizVel=vel.clone();horizVel.y=0;const speed=horizVel.length();if(speed>0.001){
+    const dir=horizVel.normalize();const axis=(new THREE.Vector3(0,1,0)).cross(dir).normalize();const angle=speed/radius*dt;marble.rotateOnAxis(axis,angle);
+  }
+}
+function animate(){
+  requestAnimationFrame(animate);const dt=clock.getDelta();updatePhysics(dt);
+  // Camera follow (isometric)
+  const targetCamPos=new THREE.Vector3(marble.position.x-8,marble.position.y+12,marble.position.z+8);camera.position.lerp(targetCamPos,0.15);camera.lookAt(marble.position);
+  renderer.render(scene,camera);
+}
 init();
 </script></body></html>
