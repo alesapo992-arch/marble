@@ -6,6 +6,7 @@ import * as THREE from './three.module.min.js';
 
 let scene,camera,renderer,marble,vel,walls=[],tiltX=0,tiltY=0,targetTiltX=0,targetTiltY=0,keys={},hasTilt=false,radius=0.5,accel=25,fric=0.98,clock;
 const startPos=new THREE.Vector3(0,radius,0);
+let particles = [];
 
 // PWA: Dynamic manifest & SW blob
 if('serviceWorker' in navigator){
@@ -29,6 +30,58 @@ async function requestSensors(){
 document.addEventListener('click',requestSensors,{once:true});
 document.addEventListener('touchstart',requestSensors,{once:true});
 
+function createParticleSystem() {
+  const geometry = new THREE.BufferGeometry();
+  const vertices = new Float32Array(1000 * 3); // Max 1000 particles
+  const colors = new Float32Array(1000 * 3);
+  geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const material = new THREE.PointsMaterial({ size: 0.1, vertexColors: true, blending: THREE.AdditiveBlending, transparent: true });
+  const system = new THREE.Points(geometry, material);
+  scene.add(system);
+  return { system, geometry, active: 0 };
+}
+
+let particleSystem;
+
+function emitParticles(position, normal, count = 20) {
+  const vertices = particleSystem.geometry.attributes.position.array;
+  const colors = particleSystem.geometry.attributes.color.array;
+  for (let i = 0; i < count; i++) {
+    const idx = particleSystem.active * 3;
+    vertices[idx] = position.x + (Math.random() - 0.5) * 0.2;
+    vertices[idx + 1] = position.y + (Math.random() - 0.5) * 0.2;
+    vertices[idx + 2] = position.z + (Math.random() - 0.5) * 0.2;
+    colors[idx] = 1; colors[idx + 1] = 1; colors[idx + 2] = 0.5; // Yellowish
+    particles.push({
+      index: particleSystem.active,
+      velocity: new THREE.Vector3((Math.random() - 0.5) * 2, Math.random() * 2 + 1, (Math.random() - 0.5) * 2).add(normal.multiplyScalar(0.5)),
+      lifetime: 1 + Math.random() * 0.5
+    });
+    particleSystem.active = (particleSystem.active + 1) % 1000;
+  }
+  particleSystem.geometry.attributes.position.needsUpdate = true;
+  particleSystem.geometry.attributes.color.needsUpdate = true;
+}
+
+function updateParticles(dt) {
+  const vertices = particleSystem.geometry.attributes.position.array;
+  const colors = particleSystem.geometry.attributes.color.array;
+  particles = particles.filter(p => {
+    p.lifetime -= dt;
+    if (p.lifetime <= 0) return false;
+    const idx = p.index * 3;
+    vertices[idx] += p.velocity.x * dt;
+    vertices[idx + 1] += p.velocity.y * dt - 9.8 * dt; // Gravity
+    vertices[idx + 2] += p.velocity.z * dt;
+    const alpha = p.lifetime / 1.5;
+    colors[idx + 1] = alpha; // Fade green channel or something, but for simplicity
+    return true;
+  });
+  particleSystem.geometry.attributes.position.needsUpdate = true;
+  particleSystem.geometry.attributes.color.needsUpdate = true;
+}
+
 function init(){
   scene=new THREE.Scene();scene.background=new THREE.Color(0x111122);
   camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,100);
@@ -51,6 +104,7 @@ function init(){
   window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
   document.addEventListener('keydown',e=>keys[e.code]=1);document.addEventListener('keyup',e=>keys[e.code]=0);
   window.addEventListener('deviceorientation',e=>{targetTiltX=Math.max(-1,Math.min(1,e.gamma/30));targetTiltY=Math.max(-1,Math.min(1,e.beta/30));hasTilt=true;});
+  particleSystem = createParticleSystem();
   animate();
 }
 function getInput(){if(hasTilt)return;targetTiltX=(keys['ArrowRight']||keys['KeyD']?1:0)-(keys['ArrowLeft']||keys['KeyA']?1:0);targetTiltY=(keys['ArrowDown']||keys['KeyS']?1:0)-(keys['ArrowUp']||keys['KeyW']?1:0);targetTiltX=Math.max(-1,Math.min(1,targetTiltX));targetTiltY=Math.max(-1,Math.min(1,targetTiltY));}
@@ -66,13 +120,16 @@ function updatePhysics(dt){
   let collided=false;for(let wall of walls){
     if(wall.distanceToPoint(testPos)<radius){
       const closest=new THREE.Vector3();wall.clampPoint(testPos,closest);const normal=new THREE.Vector3().subVectors(testPos,closest).normalize();vel.reflect(normal).multiplyScalar(0.7);collided=true;
-      const penetration=radius-wall.distanceToPoint(testPos)+0.01;marble.position.add(normal.multiplyScalar(penetration));break;
+      const penetration=radius-wall.distanceToPoint(testPos)+0.01;marble.position.add(normal.multiplyScalar(penetration));
+      emitParticles(closest, normal); // Emit particles at collision point
+      break;
     }
   }if(!collided)marble.position.copy(testPos);
   // Rolling rotation
   const horizVel=vel.clone();horizVel.y=0;const speed=horizVel.length();if(speed>0.001){
     const dir=horizVel.normalize();const axis=(new THREE.Vector3(0,1,0)).cross(dir).normalize();const angle=speed/radius*dt;marble.rotateOnAxis(axis,angle);
   }
+  updateParticles(dt);
 }
 function animate(){
   requestAnimationFrame(animate);const dt=clock.getDelta();updatePhysics(dt);
