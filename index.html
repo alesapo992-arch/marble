@@ -3,7 +3,7 @@
 <div id="info">Tilt phone or WASD/Arrows. Tap to enable sensors. Install as app!</div>
 <script type="module">
 import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-import * as CANNON from 'https://unpkg.com/cannon-es';
+import * as CANNON from 'https://unpkg.com/cannon-es/dist/cannon-es.js';
 
 let scene,camera,renderer,marble,tiltX=0,tiltY=0,targetTiltX=0,targetTiltY=0,keys={},hasTilt=false,radius=0.5,accel=25,clock;
 const startPos=new THREE.Vector3(0,radius,0);
@@ -13,7 +13,7 @@ let accumulator = 0;
 
 // PWA: Dynamic manifest & SW blob
 if('serviceWorker' in navigator){
-  const swCode=`self.addEventListener('install',e=>{e.waitUntil(caches.open('marble-v1').then(c=>c.addAll(['https://unpkg.com/three@0.160.0/build/three.module.js','https://unpkg.com/cannon-es'])))});self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`;
+  const swCode=`self.addEventListener('install',e=>{e.waitUntil(caches.open('marble-v1').then(c=>c.addAll(['https://unpkg.com/three@0.160.0/build/three.module.js','https://unpkg.com/cannon-es/dist/cannon-es.js'])))});self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`;
   const swBlob=new Blob([swCode],{type:'application/javascript'});
   navigator.serviceWorker.register(URL.createObjectURL(swBlob),{scope:'./'});
 }
