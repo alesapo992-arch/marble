@@ -158,7 +158,8 @@
     <p>
       Rory, border collie rossa e bianca, pilota l’elicottero di soccorso.
       Sorvola la campagna, recupera i <strong>5 cuccioli</strong> e riportali nella
-      <strong>cuccia</strong>. Attento a <strong>aquile</strong> e <strong>lupi</strong>.
+      <strong>cuccia</strong>. Attento a <strong>aquile</strong> e <strong>lupi</strong>:
+      li spaventano, ma i cuccioli non cadono.
     </p>
     <ul>
       <li><strong>TRASCINA</strong> = muovi l’elicottero</li>
@@ -195,6 +196,13 @@
 
       const PI2 = Math.PI * 2;
 
+      const HELI_SCALE = 1.45;
+      const HELI_BOTTOM = 30;
+      const BOARD_RADIUS = 170;
+      const LOAD_INTERVAL = 0.14;
+      const UNLOAD_INTERVAL = 0.12;
+      const MUZZLE_OFFSET = 72;
+
       let cssW = 0;
       let cssH = 0;
       let dpr = 1;
@@ -214,7 +222,7 @@
 
       const stats = {
         maxPanic: 0,
-        drops: 0,
+        scares: 0,
         enemiesStunned: 0,
         shots: 0
       };
@@ -225,8 +233,7 @@
         dragging: false,
         dragX: 0,
         dragY: 0,
-        target: null,
-        firePoint: null
+        target: null
       };
 
       const keys = {};
@@ -313,6 +320,18 @@
         }
 
         return y;
+      }
+
+      function inRiver(x) {
+        return x > RIVER.x1 + 35 && x < RIVER.x2 - 35;
+      }
+
+      function safeGroundX(x) {
+        x = clamp(x, 55, WORLD_W - 55);
+        if (inRiver(x)) {
+          x = x < RIVER.mid ? RIVER.x1 - 55 : RIVER.x2 + 55;
+        }
+        return clamp(x, 55, WORLD_W - 55);
       }
 
       const platforms = [];
@@ -522,7 +541,7 @@
         fireCooldown = 0;
 
         stats.maxPanic = 0;
-        stats.drops = 0;
+        stats.scares = 0;
         stats.enemiesStunned = 0;
         stats.shots = 0;
 
@@ -534,7 +553,7 @@
 
         Object.assign(heli, {
           x: 245,
-          y: doghouse.groundY - 26,
+          y: doghouse.groundY - HELI_BOTTOM,
           vx: 0,
           vy: 0,
           ax: 0,
@@ -552,8 +571,7 @@
           dragging: false,
           dragX: 0,
           dragY: 0,
-          target: null,
-          firePoint: null
+          target: null
         });
 
         camera.x = heli.x;
@@ -612,8 +630,8 @@
         tone(560, 0.08, "sine", 0.05, 90);
       }
 
-      function playDrop() {
-        tone(190, 0.14, "sawtooth", 0.04, -70);
+      function playScare() {
+        tone(330, 0.12, "sawtooth", 0.04, -100);
       }
 
       function playRescue() {
@@ -709,40 +727,6 @@
         playRescue();
       }
 
-      function ejectOnboard(reason = "panic") {
-        if (!heli.carrying.length) return;
-        const id = heli.carrying[heli.carrying.length - 1];
-        const p = getPuppy(id);
-        if (!p) return;
-        removeOnboard(p);
-        p.state = "falling";
-        p.x = heli.x + (Math.random() - 0.5) * 20;
-        p.y = heli.y + 18;
-        p.vx = heli.vx * 0.18 + (Math.random() - 0.5) * 80;
-        p.vy = -70;
-        stats.drops++;
-        addParticle({
-          x: p.x,
-          y: p.y - 20,
-          vy: -55,
-          life: 0.7,
-          color: "#ff6b6b",
-          size: 22,
-          text: "!"
-        });
-        playDrop();
-      }
-
-      function dropEaglePuppy(p, e) {
-        if (!p || p.state !== "danger" || p.carrier !== e) return;
-        p.state = "falling";
-        p.carrier = null;
-        p.vy = 70;
-        p.vx = (Math.random() - 0.5) * 90;
-        e.targetKind = null;
-        e.targetId = null;
-      }
-
       function isInBaseZone(obj) {
         return (
           obj.x > doghouse.x - 95 &&
@@ -781,7 +765,7 @@
         if (e.targetKind === "heli") return heli.carrying.length > 0;
         if (e.targetKind === "puppy") {
           const t = getPuppy(e.targetId);
-          return t && (t.state === "lost" || (t.state === "danger" && t.carrier === e));
+          return t && t.state === "lost";
         }
         return false;
       }
@@ -817,50 +801,55 @@
         return best;
       }
 
-      function grabPuppyByEagle(e, t) {
-        if (!t || t.state !== "lost") return;
-        t.state = "danger";
-        t.carrier = e;
-        e.targetKind = "puppy";
-        e.targetId = t.id;
-        e.state = "carry";
-        e.timer = 3.0;
-        panic += 26;
+      function scarePuppyByEagle(p, e) {
+        if (!p || p.state !== "lost") return;
+
+        const away = p.x < e.x ? -1 : 1;
+        p.x = safeGroundX(p.x + away * (130 + Math.random() * 80));
+        p.y = getSupportY(p.x) - 22;
+        p.vx = 0;
+        p.vy = 0;
+
+        panic += 22;
+        stats.scares++;
+
         addParticle({
-          x: t.x,
-          y: t.y - 26,
+          x: p.x,
+          y: p.y - 28,
           vy: -60,
           life: 0.75,
           color: "#ff6b6b",
           size: 24,
           text: "❗"
         });
+
+        playScare();
+
+        e.state = "retreat";
+        e.targetKind = null;
+        e.targetId = null;
       }
 
-      function snatchOnboard(e) {
-        if (!heli.carrying.length) return;
-        const id = heli.carrying[heli.carrying.length - 1];
-        const p = getPuppy(id);
-        if (!p) return;
-        removeOnboard(p);
-        p.state = "danger";
-        p.carrier = e;
-        p.x = e.x;
-        p.y = e.y + 32;
-        e.targetKind = "puppy";
-        e.targetId = p.id;
-        e.state = "carry";
-        e.timer = 3.0;
-        panic += 32;
+      function eagleHitsHeli(e) {
+        panic += 20;
+        heli.vx += Math.sign(heli.x - e.x || 1) * 70;
+        heli.vy -= 35;
+
         addParticle({
-          x: p.x,
-          y: p.y - 28,
-          vy: -65,
-          life: 0.8,
-          color: "#ff6b6b",
-          size: 26,
-          text: "❗"
+          x: e.x,
+          y: e.y + 10,
+          vy: -35,
+          life: 0.55,
+          color: "#fff",
+          size: 18,
+          text: "💢"
         });
+
+        playScare();
+
+        e.state = "retreat";
+        e.targetKind = null;
+        e.targetId = null;
       }
 
       function respawnEagle(e) {
@@ -893,24 +882,21 @@
         return best;
       }
 
-      function wolfScarePuppy(t, w) {
-        const away = t.x < w.x ? -1 : 1;
-        let nx = clamp(t.x + away * (120 + Math.random() * 90), 55, WORLD_W - 55);
+      function scarePuppyByWolf(p, w) {
+        if (!p || p.state !== "lost") return;
 
-        if (nx > RIVER.x1 + 15 && nx < RIVER.x2 - 15) {
-          nx = nx < RIVER.mid ? RIVER.x1 - 45 : RIVER.x2 + 45;
-        }
+        const away = p.x < w.x ? -1 : 1;
+        p.x = safeGroundX(p.x + away * (120 + Math.random() * 90));
+        p.y = getSupportY(p.x) - 22;
+        p.vx = 0;
+        p.vy = 0;
 
-        t.x = nx;
-        t.y = getSupportY(t.x) - 22;
-        t.vx = 0;
-        t.vy = 0;
-        t.state = "lost";
         panic += 18;
+        stats.scares++;
 
         addParticle({
-          x: t.x,
-          y: t.y - 26,
+          x: p.x,
+          y: p.y - 26,
           vy: -55,
           life: 0.7,
           color: "#ff6b6b",
@@ -918,25 +904,17 @@
           text: "!"
         });
 
-        playDrop();
+        playScare();
       }
 
       function hitEagle(e, b) {
         e.stun = 2.2;
         e.state = "stunned";
-        e.vx = b.vx * 0.05;
-        e.vy = -80;
-        stats.enemiesStunned++;
-
-        if (e.targetKind === "puppy") {
-          const t = getPuppy(e.targetId);
-          if (t && t.state === "danger" && t.carrier === e) {
-            dropEaglePuppy(t, e);
-          }
-        }
-
+        e.vx = b.vx * 0.04;
+        e.vy = -70;
         e.targetKind = null;
         e.targetId = null;
+        stats.enemiesStunned++;
 
         addParticle({
           x: e.x,
@@ -955,6 +933,7 @@
         w.scare = 1.8;
         w.state = "scared";
         w.vx = Math.sign(w.x - b.x) * 180;
+        w.targetId = null;
         stats.enemiesStunned++;
 
         addParticle({
@@ -1007,14 +986,14 @@
         const angle = Math.atan2(targetY - heli.y, targetX - heli.x);
         heli.aimAngle = angle;
 
-        const mx = heli.x + Math.cos(angle) * 54;
-        const my = heli.y + Math.sin(angle) * 54 + 6;
+        const mx = heli.x + Math.cos(angle) * MUZZLE_OFFSET;
+        const my = heli.y + Math.sin(angle) * MUZZLE_OFFSET + 8;
 
         bullets.push({
           x: mx,
           y: my,
-          vx: Math.cos(angle) * 650 + heli.vx * 0.08,
-          vy: Math.sin(angle) * 650 + heli.vy * 0.08,
+          vx: Math.cos(angle) * 720 + heli.vx * 0.08,
+          vy: Math.sin(angle) * 720 + heli.vy * 0.08,
           life: 1.25,
           r: 8
         });
@@ -1044,7 +1023,7 @@
         winStats.innerHTML =
           `Tempo: <strong>${Math.round(time)}s</strong><br>` +
           `Panico massimo: <strong>${Math.round(stats.maxPanic)}%</strong><br>` +
-          `Cuccioli caduti: <strong>${stats.drops}</strong><br>` +
+          `Spaventi subiti: <strong>${stats.scares}</strong><br>` +
           `Predatori storditi: <strong>${stats.enemiesStunned}</strong>`;
 
         winScreen.classList.remove("hidden");
@@ -1056,19 +1035,15 @@
       function updateHeli(dt) {
         const speed = Math.hypot(heli.vx, heli.vy);
 
-        const targetRotor = heli.onGround ? 0 : 9 + speed * 0.035;
-        heli.rotorSpeed = lerp(heli.rotorSpeed, targetRotor, Math.min(1, dt * (targetRotor > heli.rotorSpeed ? 1.8 : 1.15)));
-        heli.rotor += heli.rotorSpeed * dt;
-
         let desiredVx = 0;
         let desiredVy = 0;
 
-        const MAX_SPEED = 245;
-        const MAX_VY = 165;
+        const MAX_SPEED = 340;
+        const MAX_VY = 270;
 
         if (input.dragging) {
-          desiredVx = clamp(input.dragX * 1.55, -MAX_SPEED, MAX_SPEED);
-          desiredVy = clamp(input.dragY * 1.25, -MAX_VY, MAX_VY);
+          desiredVx = clamp(input.dragX * 1.85, -MAX_SPEED, MAX_SPEED);
+          desiredVy = clamp(input.dragY * 1.55, -MAX_VY, MAX_VY);
         } else if (input.target) {
           const dx = input.target.x - heli.x;
           const dy = input.target.y - heli.y;
@@ -1077,8 +1052,8 @@
           if (d < 18) {
             input.target = null;
           } else {
-            desiredVx = clamp(dx * 1.85, -MAX_SPEED, MAX_SPEED);
-            desiredVy = clamp(dy * 1.55, -MAX_VY, MAX_VY);
+            desiredVx = clamp(dx * 2.15, -MAX_SPEED, MAX_SPEED);
+            desiredVy = clamp(dy * 1.85, -MAX_VY, MAX_VY);
           }
         } else {
           let kx = 0;
@@ -1089,13 +1064,24 @@
           if (keys.ArrowDown || keys.KeyS) ky += 1;
 
           if (kx || ky) {
-            desiredVx = kx * MAX_SPEED * 0.75;
-            desiredVy = ky * MAX_VY * 0.75;
+            desiredVx = kx * MAX_SPEED * 0.82;
+            desiredVy = ky * MAX_VY * 0.82;
           }
         }
 
-        const ACCEL = 2.35;
-        const DAMP = 2.0;
+        const targetRotor = heli.onGround
+          ? desiredVy < -35 ? 13 : 0
+          : 16 + speed * 0.055;
+
+        heli.rotorSpeed = lerp(
+          heli.rotorSpeed,
+          targetRotor,
+          Math.min(1, dt * (targetRotor > heli.rotorSpeed ? 5.2 : 2.6))
+        );
+        heli.rotor += heli.rotorSpeed * dt;
+
+        const ACCEL = 3.6;
+        const DAMP = 2.9;
 
         let ax = 0;
         let ay = 0;
@@ -1129,24 +1115,24 @@
         }
 
         const support = getSupportY(heli.x);
-        const altitude = support - (heli.y + 26);
+        const altitude = support - (heli.y + HELI_BOTTOM);
 
-        // Atterraggio morbido
-        if (altitude < 190 && heli.vy > 62) heli.vy = 62;
-        if (altitude < 95 && heli.vy > 36) heli.vy = 36;
+        // Atterraggio morbido ma non eccessivo
+        if (altitude < 130 && heli.vy > 145) heli.vy = 145;
+        if (altitude < 60 && heli.vy > 82) heli.vy = 82;
 
-        // Decollo morbido
-        if (altitude < 140 && heli.vy < -72) heli.vy = -72;
+        // Decollo più pronto
+        if (altitude < 100 && heli.vy < -175) heli.vy = -175;
 
-        if (heli.y + 26 >= support) {
-          heli.y = support - 26;
+        if (heli.y + HELI_BOTTOM >= support) {
+          heli.y = support - HELI_BOTTOM;
           heli.vy = 0;
           heli.onGround = true;
         } else {
           heli.onGround = false;
         }
 
-        heli.angle = clamp(heli.vx * 0.0013, -0.24, 0.24);
+        heli.angle = clamp(heli.vx * 0.0012, -0.22, 0.22);
 
         const aimTarget = nearestEnemy();
         const desiredAim = aimTarget
@@ -1155,33 +1141,35 @@
 
         let diff = ((desiredAim - heli.aimAngle + Math.PI) % PI2) - Math.PI;
         if (diff < -Math.PI) diff += PI2;
-        heli.aimAngle += diff * Math.min(1, dt * 7);
+        heli.aimAngle += diff * Math.min(1, dt * 8);
 
         // Consegna graduale alla cuccia
-        if (heli.carrying.length > 0 && isInBaseZone(heli) && heli.onGround && speed < 95) {
+        if (heli.carrying.length > 0 && isInBaseZone(heli) && heli.onGround && speed < 125) {
           unloadTimer -= dt;
           if (unloadTimer <= 0) {
             const id = heli.carrying[0];
             rescueOnboardId(id);
-            unloadTimer = 0.22;
+            unloadTimer = UNLOAD_INTERVAL;
           }
         } else {
-          unloadTimer = 0.12;
+          unloadTimer = 0.08;
         }
       }
 
       function updateBoarding(dt) {
         const speed = Math.hypot(heli.vx, heli.vy);
 
-        if (heli.onGround && speed < 90 && heli.carrying.length < heli.maxCarry) {
+        if (heli.onGround && speed < 130 && heli.carrying.length < heli.maxCarry) {
           boardTimer -= dt;
           if (boardTimer <= 0) {
             let best = null;
-            let bestD = 160;
+            let bestD = BOARD_RADIUS;
+            const hookX = heli.x;
+            const hookY = heli.y + HELI_BOTTOM - 10;
 
             for (const p of puppies) {
               if (p.state !== "lost") continue;
-              const d = dist(heli.x, heli.y + 18, p.x, p.y);
+              const d = dist(hookX, hookY, p.x, p.y);
               if (d < bestD) {
                 bestD = d;
                 best = p;
@@ -1191,13 +1179,13 @@
             if (best) {
               best.state = "boarding";
               best.carrier = "heli";
-              boardTimer = 0.28;
+              boardTimer = LOAD_INTERVAL;
             } else {
-              boardTimer = 0.12;
+              boardTimer = 0.08;
             }
           }
         } else {
-          boardTimer = 0.18;
+          boardTimer = 0.10;
         }
       }
 
@@ -1207,67 +1195,35 @@
             p.bob += dt * 3;
             p.y = getSupportY(p.x) - 22;
           } else if (p.state === "boarding") {
-            if (!heli.onGround) {
+            const speed = Math.hypot(heli.vx, heli.vy);
+
+            if (!heli.onGround || speed > 170) {
               p.state = "lost";
               p.carrier = null;
+              p.x = safeGroundX(p.x);
+              p.y = getSupportY(p.x) - 22;
+              p.vx = 0;
+              p.vy = 0;
               continue;
             }
 
-            const side = p.x < heli.x ? -30 : 30;
+            const side = p.x < heli.x ? -44 : 44;
             const tx = heli.x + side;
-            const ty = heli.y + 10;
+            const ty = heli.y + 2;
             const dx = tx - p.x;
             const dy = ty - p.y;
             const d = Math.hypot(dx, dy) || 1;
 
-            p.vx = lerp(p.vx, (dx / d) * 150, Math.min(1, dt * 8));
-            p.vy = lerp(p.vy, (dy / d) * 150, Math.min(1, dt * 8));
+            p.vx = lerp(p.vx, (dx / d) * 270, Math.min(1, dt * 10));
+            p.vy = lerp(p.vy, (dy / d) * 270, Math.min(1, dt * 10));
             p.x += p.vx * dt;
             p.y += p.vy * dt;
 
-            if (d < 20) {
+            if (d < 30) {
               boardPuppy(p);
             }
           } else if (p.state === "onboard") {
-            // A bordo: nascosto in cabina, disegnato come testine.
-          } else if (p.state === "falling") {
-            p.vy += 900 * dt;
-            p.vy = Math.min(p.vy, 820);
-            p.x += p.vx * dt;
-            p.y += p.vy * dt;
-            p.x = clamp(p.x, 35, WORLD_W - 35);
-
-            if (p.x > RIVER.x1 + 15 && p.x < RIVER.x2 - 15) {
-              const sup = getSupportY(p.x);
-              if (sup > RIVER.surface + 20) {
-                p.x = p.x < RIVER.mid ? RIVER.x1 - 45 : RIVER.x2 + 45;
-              }
-            }
-
-            const support = getSupportY(p.x) - 20;
-            if (p.y >= support) {
-              p.y = support;
-              p.vy = 0;
-              p.vx = 0;
-              p.state = "lost";
-              addParticle({
-                x: p.x,
-                y: p.y + 8,
-                vy: -22,
-                life: 0.35,
-                color: "rgba(255,255,255,0.85)",
-                size: 16,
-                text: "·"
-              });
-            }
-          } else if (p.state === "danger") {
-            if (p.carrier && p.carrier.type === "eagle") {
-              p.x = p.carrier.x;
-              p.y = p.carrier.y + 34;
-            } else {
-              p.state = "falling";
-              p.carrier = null;
-            }
+            // A bordo: nessun rischio di caduta.
           } else if (p.state === "rescued") {
             p.y = doghouse.groundY - 24;
           }
@@ -1283,13 +1239,6 @@
           e.y += e.vy * dt;
           e.vx *= 0.96;
           e.vy *= 0.96;
-
-          if (e.targetKind === "puppy") {
-            const t = getPuppy(e.targetId);
-            if (t && t.state === "danger" && t.carrier === e) {
-              dropEaglePuppy(t, e);
-            }
-          }
 
           if (e.stun <= 0) {
             e.state = "retreat";
@@ -1364,36 +1313,16 @@
           e.y += (dy / d) * speed * dt;
 
           if (e.targetKind === "heli") {
-            if (d < 62) snatchOnboard(e);
+            if (d < 82) eagleHitsHeli(e);
           } else {
             const t = getPuppy(e.targetId);
-            if (t && d < 44) grabPuppyByEagle(e, t);
+            if (t && d < 48) scarePuppyByEagle(t, e);
           }
 
           if (e.y > WORLD_H + 80 || d > 560) {
             e.state = "retreat";
             e.targetKind = null;
             e.targetId = null;
-          }
-        } else if (e.state === "carry") {
-          const t = getPuppy(e.targetId);
-          if (!t || t.state !== "danger" || t.carrier !== e) {
-            e.state = "retreat";
-            e.targetKind = null;
-            e.targetId = null;
-            return;
-          }
-
-          e.timer -= dt;
-          t.x = e.x;
-          t.y = e.y + 34;
-
-          e.y -= 72 * dt;
-          e.x += Math.sin(animTime * 3 + e.seed) * 35 * dt;
-
-          if (e.y < 110 || e.timer <= 0) {
-            dropEaglePuppy(t, e);
-            e.state = "retreat";
           }
         } else if (e.state === "retreat") {
           e.y -= 160 * dt;
@@ -1410,6 +1339,12 @@
           w.x += w.vx * dt;
           w.vx *= 0.95;
           w.x = clamp(w.x, 45, WORLD_W - 45);
+
+          if (inRiver(w.x)) {
+            w.x = w.x < RIVER.mid ? RIVER.x1 - 45 : RIVER.x2 + 45;
+            w.dir *= -1;
+          }
+
           if (w.scare <= 0) {
             w.state = "patrol";
             w.timer = 1;
@@ -1428,6 +1363,11 @@
           if (w.x > WORLD_W - 65) {
             w.x = WORLD_W - 65;
             w.dir = -1;
+          }
+
+          if (inRiver(w.x)) {
+            w.x = w.x < RIVER.mid ? RIVER.x1 - 45 : RIVER.x2 + 45;
+            w.dir *= -1;
           }
 
           if (w.timer <= 0) {
@@ -1462,10 +1402,15 @@
           w.x += dir * w.speed * 1.35 * dt;
           w.x = clamp(w.x, 45, WORLD_W - 45);
 
+          if (inRiver(w.x)) {
+            w.x = w.x < RIVER.mid ? RIVER.x1 - 45 : RIVER.x2 + 45;
+            w.dir *= -1;
+          }
+
           if (Math.abs(t.x - w.x) < 58 && Math.abs(t.y - w.y) < 90) {
             w.timer += dt;
-            if (w.timer > 1.65) {
-              wolfScarePuppy(t, w);
+            if (w.timer > 1.5) {
+              scarePuppyByWolf(t, w);
               w.timer = 0;
               w.scare = 0.7;
               w.state = "patrol";
@@ -1542,7 +1487,7 @@
         }
 
         for (const e of eagles) {
-          if (e.stun <= 0 && (e.state === "aim" || e.state === "dive" || e.state === "carry")) {
+          if (e.stun <= 0 && (e.state === "aim" || e.state === "dive")) {
             if (dist(e.x, e.y, heli.x, heli.y) < 300) inc += 4.6;
           }
         }
@@ -1563,13 +1508,7 @@
         panic = clamp(panic, 0, 100);
         stats.maxPanic = Math.max(stats.maxPanic, panic);
 
-        if (
-          panic > 92 &&
-          heli.carrying.length > 0 &&
-          Math.random() < (panic - 92) * 0.03 * dt
-        ) {
-          ejectOnboard("panic");
-        }
+        // Nessuna caduta automatica: il panico è solo tensione/feedback.
       }
 
       function update(dt) {
@@ -2135,7 +2074,6 @@
         }
         ctx.stroke();
 
-        // collarino rosso per renderli ancora più leggibili
         ctx.strokeStyle = "#e74c3c";
         ctx.lineWidth = 2.2;
         ctx.beginPath();
@@ -2183,20 +2121,12 @@
 
       function drawPuppies() {
         for (const p of puppies) {
-          if (p.state === "rescued" || p.state === "onboard" || !visible(p.x, 140)) continue;
+          if (p.state !== "lost" && p.state !== "boarding") continue;
+          if (!visible(p.x, 140)) continue;
 
-          const face = p.state === "danger" || panic > 70 ? "scared" : "happy";
-          const highlight = p.state === "lost" || p.state === "boarding";
-          drawPuppySprite(p.x, p.y, p.fur, p.patch, 1.35, face, animTime * 8 + p.id, highlight);
-
-          if (p.state === "danger") {
-            ctx.save();
-            ctx.fillStyle = "#ff4d4d";
-            ctx.font = "bold 26px system-ui";
-            ctx.textAlign = "center";
-            ctx.fillText("❗", p.x + 22, p.y - 28);
-            ctx.restore();
-          }
+          const face = panic > 70 ? "scared" : "happy";
+          const highlight = p.state === "lost";
+          drawPuppySprite(p.x, p.y, p.fur, p.patch, 1.02, face, animTime * 8 + p.id, highlight);
         }
       }
 
@@ -2257,9 +2187,20 @@
         for (let i = 0; i < heli.carrying.length; i++) {
           const p = getPuppy(heli.carrying[i]);
           if (!p) continue;
-          const x = -4 + i * 9.2;
-          const y = 2 + (i % 2) * 2.2;
-          drawPuppySprite(x, y, p.fur, p.patch, 0.31, "happy", animTime * 7 + i, false);
+
+          const x = -14 + i * 5.8;
+          const y = 5 + (i % 2) * 1.5;
+
+          drawPuppySprite(
+            x,
+            y,
+            p.fur,
+            p.patch,
+            0.17,
+            "happy",
+            animTime * 7 + i,
+            false
+          );
         }
       }
 
@@ -2267,64 +2208,77 @@
         ctx.save();
         ctx.translate(heli.x, heli.y);
         ctx.rotate(heli.angle);
+        ctx.scale(HELI_SCALE, HELI_SCALE);
 
+        // Sci
         ctx.strokeStyle = "#444";
         ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.moveTo(-25, 20);
-        ctx.lineTo(25, 20);
-        ctx.moveTo(-18, 14);
-        ctx.lineTo(-18, 20);
-        ctx.moveTo(18, 14);
-        ctx.lineTo(18, 20);
+        ctx.moveTo(-27, 20);
+        ctx.lineTo(27, 20);
+        ctx.moveTo(-19, 13);
+        ctx.lineTo(-19, 20);
+        ctx.moveTo(19, 13);
+        ctx.lineTo(19, 20);
         ctx.stroke();
 
+        // Kodone
         ctx.fillStyle = "#d35400";
-        rr(-60, -6, 46, 10, 4);
+        rr(-62, -6, 48, 10, 4);
         ctx.fill();
 
+        // Deriva
         ctx.fillStyle = "#b5462d";
         ctx.beginPath();
-        ctx.moveTo(-60, -6);
-        ctx.lineTo(-70, -21);
-        ctx.lineTo(-50, -6);
+        ctx.moveTo(-62, -6);
+        ctx.lineTo(-73, -22);
+        ctx.lineTo(-51, -6);
         ctx.closePath();
         ctx.fill();
 
+        // Corpo principale
         ctx.fillStyle = "#fff7f0";
-        rr(-28, -16, 58, 34, 14);
+        rr(-30, -17, 62, 36, 15);
         ctx.fill();
 
+        // Striscia rossa border collie
         ctx.fillStyle = "#b5462d";
-        rr(-28, 4, 58, 8, 4);
+        rr(-30, 5, 62, 8, 4);
         ctx.fill();
 
+        // Cockpit
         ctx.fillStyle = "#fff8f2";
-        rr(-18, -12, 34, 22, 10);
+        rr(-19, -13, 36, 23, 10);
         ctx.fill();
 
         ctx.fillStyle = "rgba(120, 200, 255, 0.55)";
-        rr(-8, -12, 26, 20, 8);
+        rr(-8, -13, 27, 21, 8);
         ctx.fill();
 
-        drawRoryFace(3, -2, 1.05);
+        // Cuccioli a bordo
         drawOnboardPassengers();
 
+        // Rory pilota
+        drawRoryFace(3, -2, 0.92);
+
+        // Cannone orientabile
         ctx.save();
         ctx.rotate(heli.aimAngle - heli.angle);
         ctx.fillStyle = "#555";
-        rr(16, 4, 30, 8, 4);
+        rr(17, 4, 32, 8, 4);
         ctx.fill();
+
         ctx.fillStyle = "#333";
         ctx.beginPath();
-        ctx.arc(48, 8, 4.5, 0, PI2);
+        ctx.arc(51, 8, 4.8, 0, PI2);
         ctx.fill();
         ctx.restore();
 
+        // Gancio/aggancio visivo
         ctx.strokeStyle = "#aaa";
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(0, 18);
+        ctx.moveTo(0, 19);
         ctx.lineTo(0, 30);
         ctx.stroke();
 
@@ -2333,22 +2287,52 @@
         ctx.arc(0, 32, 3, 0, PI2);
         ctx.fill();
 
+        // Palo rotore
         ctx.fillStyle = "#555";
-        ctx.fillRect(-2, -26, 4, 10);
+        ctx.fillRect(-2, -27, 4, 11);
 
-        // Rotore: si ferma e sfuma quando l'elicottero è a terra
-        const rotorAlpha = clamp(heli.rotorSpeed / 7, 0.12, 0.86);
+        // ROTORE 2D: vista laterale, disco sfocato + pala che vibra
+        const spin = heli.rotor;
+        const power = clamp(heli.rotorSpeed / 14, 0, 1);
+
         ctx.save();
-        ctx.globalAlpha = rotorAlpha;
-        ctx.translate(0, -26);
-        ctx.rotate(heli.rotor);
-        ctx.strokeStyle = "rgba(30,30,30,0.55)";
-        ctx.lineWidth = 5;
+        ctx.translate(0, -29);
+
+        // Disco sfocato
+        ctx.globalAlpha = 0.08 * power;
+        ctx.strokeStyle = "#222";
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(-60, 0);
-        ctx.lineTo(60, 0);
-        ctx.moveTo(0, -60);
-        ctx.lineTo(0, 60);
+        ctx.ellipse(0, 0, 66, 7 + power * 4, 0, 0, PI2);
+        ctx.stroke();
+
+        // Pala principale vista di taglio
+        const bladeY = Math.sin(spin) * 1.4;
+        const bladeThickness = 1.2 + Math.abs(Math.cos(spin)) * 1.2 + power * 2.2;
+
+        ctx.globalAlpha = 0.12 + 0.78 * power;
+        ctx.fillStyle = "#2b2b2b";
+        ctx.beginPath();
+        ctx.ellipse(0, bladeY, 66, bladeThickness, 0, 0, PI2);
+        ctx.fill();
+
+        // Mozzo
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#666";
+        ctx.beginPath();
+        ctx.arc(0, 0, 4.2, 0, PI2);
+        ctx.fill();
+
+        ctx.restore();
+
+        // Rotore di coda, vista laterale/sfocato
+        ctx.save();
+        ctx.translate(-62, -2);
+        ctx.globalAlpha = 0.10 + 0.35 * power;
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 3, 11, 0, 0, PI2);
         ctx.stroke();
         ctx.restore();
 
@@ -2408,17 +2392,6 @@
           ctx.beginPath();
           ctx.arc(13, -5, 1.9, 0, PI2);
           ctx.fill();
-        }
-
-        if (e.state === "carry") {
-          ctx.strokeStyle = "#f1c40f";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(-2, 12);
-          ctx.lineTo(-2, 22);
-          ctx.moveTo(5, 12);
-          ctx.lineTo(5, 22);
-          ctx.stroke();
         }
 
         ctx.restore();
@@ -2726,7 +2699,6 @@
         canvas.style.width = cssW + "px";
         canvas.style.height = cssH + "px";
 
-        // Visuale più vicina per mobile
         const targetW = 560;
         const targetH = 990;
         zoom = clamp(Math.max(cssW / targetW, cssH / targetH), 0.55, 2.2);
@@ -2758,7 +2730,6 @@
           clearSingleTap();
           tapToken++;
           fireAtWorld(world.x, world.y);
-          lastTapTime = 0;
         }
 
         activePointer = e.pointerId;
@@ -2778,7 +2749,7 @@
           }, 260);
         }
 
-        lastTapTime = now;
+        lastTapTime = wasDouble ? 0 : now;
         lastTapCX = e.clientX;
         lastTapCY = e.clientY;
 
@@ -2833,7 +2804,6 @@
         keys[e.code] = true;
 
         if (e.code === "Space") {
-          // Da desktop: spazio spara verso il predatore più vicino
           const target = nearestEnemy();
           if (target) fireAtWorld(target.x, target.y);
           e.preventDefault();
@@ -2872,9 +2842,9 @@
 
       async function shareResult() {
         const text =
-          `Ho salvato ${rescued}/5 cuccioli con Rory! 🚁🐶 ` +
+          `Ho salvato ${rescued}/5 cuccioli con Rory! 🚁 ` +
           `Tempo: ${Math.round(time)}s, panico max ${Math.round(stats.maxPanic)}%, ` +
-          `predatori storditi ${stats.enemiesStunned}. Prova anche tu!`;
+          `spaventi ${stats.scares}, predatori storditi ${stats.enemiesStunned}. Prova anche tu!`;
 
         const url = window.location.href;
 
