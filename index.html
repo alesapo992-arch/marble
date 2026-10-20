@@ -1,1000 +1,3148 @@
 <!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Border Collie Herding · Draw-to-move</title>
-  <style>
-    html, body {
-      margin: 0;
-      height: 100%;
-      overflow: hidden;
-      background: #173d1c;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: none;
-      overscroll-behavior: none;
-    }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#79bd52">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Border Collie Herding v2 - porta il gregge nel recinto, attraversa il fiume, sopravvivi alle anatre.">
+<title>Border Collie Herding · v2</title>
+<style>
+  /* ------------------------------------------------------------------
+     BASE / RESET — mobile first, nessuno scroll, nessuno zoom
+  ------------------------------------------------------------------ */
+  *, *::before, *::after { box-sizing: border-box; }
 
-    #game {
-      position: fixed;
-      inset: 0;
-      display: block;
-      touch-action: none;
-    }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #2f5d33;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif;
+    color: #fff;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    touch-action: none;
+    overscroll-behavior: none;
+  }
 
-    #restart {
-      position: fixed;
-      top: max(12px, env(safe-area-inset-top));
-      right: 12px;
-      z-index: 20;
-      background: rgba(15, 28, 18, 0.88);
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.25);
-      border-radius: 12px;
-      padding: 8px 12px;
-      font-size: 18px;
-      touch-action: none;
-    }
+  body { position: fixed; inset: 0; }
 
-    #overlay {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(4, 12, 6, 0.78);
-      z-index: 30;
-      padding: 20px;
-    }
+  /* ------------------------------------------------------------------
+     STAGE — il gioco vive qui; su desktop mantiene un formato verticale
+  ------------------------------------------------------------------ */
+  #stage {
+    position: fixed;
+    left: 0; top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #79bd52;
+    contain: layout paint;
+    touch-action: none;
+  }
 
-    #overlayCard {
-      max-width: 560px;
-      width: 100%;
-      color: #fff;
-      text-align: center;
-      background: rgba(12, 32, 18, 0.94);
-      border: 1px solid rgba(255,255,255,0.14);
-      border-radius: 20px;
-      padding: 26px 20px;
-      box-shadow: 0 20px 70px rgba(0,0,0,0.45);
-    }
+  #game {
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+    -webkit-user-drag: none;
+  }
 
-    #overlayCard h1 {
-      margin: 0 0 8px;
-      font-size: 32px;
-      letter-spacing: 1px;
-    }
+  .hidden { display: none !important; }
 
-    #overlayCard p {
-      margin: 10px 0;
-      line-height: 1.5;
-      color: rgba(255,255,255,0.88);
-      font-size: 16px;
-    }
+  /* ------------------------------------------------------------------
+     HUD
+  ------------------------------------------------------------------ */
+  #hud {
+    position: absolute;
+    left: 0; right: 0;
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 0 calc(env(safe-area-inset-right, 0px) + 10px) 0 calc(env(safe-area-inset-left, 0px) + 10px);
+    pointer-events: none;
+    z-index: 6;
+    transition: opacity .3s ease;
+  }
 
-    #ovBtn {
-      margin-top: 18px;
-      border: 0;
-      border-radius: 14px;
-      padding: 14px 24px;
-      font-size: 20px;
-      font-weight: 800;
-      color: #07130a;
-      background: #86efac;
-      touch-action: manipulation;
-    }
+  .hud-group { display: flex; align-items: center; gap: 6px; }
 
-    .small {
-      font-size: 13px;
-      color: rgba(255,255,255,0.55);
-    }
-  </style>
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 34px;
+    padding: 0 11px;
+    border-radius: 999px;
+    background: rgba(22, 38, 26, .55);
+    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .16);
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: .3px;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .35);
+    white-space: nowrap;
+  }
+
+  .pill .ic { font-size: 13px; opacity: .95; }
+  .pill.best { color: #ffe694; }
+  .pill.pulse { animation: pillPulse .45s ease; }
+
+  @keyframes pillPulse {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.12); background: rgba(255, 214, 90, .55); }
+    100% { transform: scale(1); }
+  }
+
+  .icon-btn {
+    width: 34px; height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 0;
+    background: rgba(22, 38, 26, .55);
+    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .16);
+    color: #fff;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+    pointer-events: auto;
+    touch-action: manipulation;
+    transition: transform .12s ease, background .12s ease;
+  }
+
+  .icon-btn:active { transform: scale(.9); background: rgba(22, 38, 26, .8); }
+  .icon-btn.off { opacity: .45; }
+  .icon-btn svg { display: block; pointer-events: none; }
+  .icon-btn .ic-off { display: none; }
+  .icon-btn.off .ic-on { display: none; }
+  .icon-btn.off .ic-off { display: block; }
+
+  /* ------------------------------------------------------------------
+     CHIP ABBAIO (cooldown)
+  ------------------------------------------------------------------ */
+  #barkChip {
+    position: absolute;
+    left: calc(env(safe-area-inset-left, 0px) + 12px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    z-index: 6;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    background: rgba(22, 38, 26, .42);
+    transition: transform .15s ease;
+    --p: 100;
+  }
+
+  #barkChip .ring {
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: conic-gradient(#ffd84a calc(var(--p) * 1%), rgba(255, 255, 255, .18) 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  }
+
+  #barkChip .chip-icon {
+    font-size: 22px;
+    filter: saturate(1.05);
+  }
+
+  #barkChip.ready { transform: scale(1); }
+  #barkChip.punch { animation: chipPunch .3s ease; }
+
+  @keyframes chipPunch {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+
+  /* ------------------------------------------------------------------
+     TOASTS
+  ------------------------------------------------------------------ */
+  #toasts {
+    position: absolute;
+    left: 50%;
+    top: calc(env(safe-area-inset-top, 0px) + 58px);
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    z-index: 7;
+    pointer-events: none;
+    width: min(92%, 360px);
+  }
+
+  .toast {
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: rgba(255, 250, 235, .96);
+    color: #33291c;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: .2px;
+    box-shadow: 0 6px 0 rgba(44, 32, 18, .18), 0 10px 22px rgba(0, 0, 0, .2);
+    animation: toastIn .32s cubic-bezier(.2, 1.5, .5, 1), toastOut .4s ease 1.75s forwards;
+    text-align: center;
+    max-width: 100%;
+  }
+
+  .toast.rebel { background: #ffe0e8; color: #8c1f3d; }
+  .toast.duck  { background: #e6f4ff; color: #1d5182; }
+
+  @keyframes toastIn {
+    0%   { transform: translateY(-14px) scale(.85); opacity: 0; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+  }
+  @keyframes toastOut {
+    to { transform: translateY(-8px) scale(.96); opacity: 0; }
+  }
+
+  /* ------------------------------------------------------------------
+     SCHERMATE (start / end)
+  ------------------------------------------------------------------ */
+  .screen {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+    background: radial-gradient(120% 90% at 50% 0%, rgba(28, 56, 34, .55), rgba(12, 26, 16, .82));
+    animation: screenIn .28s ease;
+  }
+
+  @keyframes screenIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .card {
+    width: 100%;
+    max-width: 340px;
+    max-height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 20px 18px 18px;
+    border-radius: 26px;
+    background: linear-gradient(180deg, #fffdf6 0%, #fdf0d8 100%);
+    color: #33291c;
+    text-align: center;
+    box-shadow: 0 10px 0 rgba(38, 26, 12, .22), 0 24px 50px rgba(0, 0, 0, .38);
+    border: 3px solid #fff;
+  }
+
+  .eyebrow {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: #4e8f3a;
+    background: #e7f6d6;
+    padding: 5px 11px;
+    border-radius: 999px;
+    margin-bottom: 10px;
+  }
+
+  .card h1 {
+    margin: 0 0 8px;
+    font-size: clamp(26px, 8.4vw, 32px);
+    line-height: 1.02;
+    letter-spacing: .5px;
+    font-weight: 900;
+    color: #2c2318;
+  }
+
+  .card h2 {
+    margin: 0 0 6px;
+    font-size: clamp(22px, 7vw, 27px);
+    line-height: 1.1;
+    font-weight: 900;
+    color: #2c2318;
+  }
+
+  .lead {
+    margin: 0 0 12px;
+    font-size: 14px;
+    line-height: 1.42;
+    color: #6a5a44;
+    font-weight: 600;
+  }
+
+  .how {
+    list-style: none;
+    margin: 0 0 16px;
+    padding: 0;
+    text-align: left;
+    display: grid;
+    gap: 8px;
+    font-size: 13.5px;
+    line-height: 1.35;
+    color: #5a4a36;
+  }
+
+  .how li {
+    display: flex;
+    gap: 9px;
+    align-items: flex-start;
+    background: #fff8ea;
+    border-radius: 14px;
+    padding: 9px 11px;
+    box-shadow: inset 0 0 0 1.5px rgba(120, 96, 56, .12);
+  }
+
+  .how li b { color: #2c2318; }
+  .how .em { font-size: 16px; line-height: 1.1; }
+
+  .primary {
+    width: 100%;
+    border: 0;
+    border-radius: 18px;
+    padding: 15px 18px;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: .6px;
+    color: #fff;
+    background: linear-gradient(180deg, #4ecb5f 0%, #34a844 100%);
+    box-shadow: 0 5px 0 #247a31, 0 10px 20px rgba(36, 122, 49, .3);
+    touch-action: manipulation;
+    transition: transform .1s ease, box-shadow .1s ease;
+    font-family: inherit;
+  }
+
+  .primary:active {
+    transform: translateY(4px);
+    box-shadow: 0 1px 0 #247a31, 0 6px 12px rgba(36, 122, 49, .3);
+  }
+
+  .foot {
+    margin-top: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #8a7a62;
+    line-height: 1.4;
+  }
+
+  .stars {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-size: 34px;
+    line-height: 1;
+    color: #e6dcc6;
+  }
+
+  .stars .on {
+    color: #ffc72c;
+    text-shadow: 0 3px 0 #d99a00, 0 0 18px rgba(255, 199, 44, .6);
+    animation: starPop .45s cubic-bezier(.2, 1.7, .5, 1) backwards;
+  }
+
+  .stars .on:nth-child(2) { animation-delay: .1s; }
+  .stars .on:nth-child(3) { animation-delay: .2s; }
+
+  @keyframes starPop {
+    0%   { transform: scale(0) rotate(-40deg); }
+    100% { transform: scale(1) rotate(0); }
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 14px 0 16px;
+  }
+
+  .stat {
+    background: #fff8ea;
+    border-radius: 14px;
+    padding: 9px 8px;
+    box-shadow: inset 0 0 0 1.5px rgba(120, 96, 56, .12);
+  }
+
+  .stat .k {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: .7px;
+    text-transform: uppercase;
+    color: #9a8668;
+    margin-bottom: 2px;
+  }
+
+  .stat .v {
+    display: block;
+    font-size: 17px;
+    font-weight: 900;
+    color: #2c2318;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat.wide { grid-column: 1 / -1; }
+  .stat.gold .v { color: #b8860b; }
+
+  /* Tap hint che appare nei primi secondi di gioco */
+  #hint {
+    position: absolute;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
+    transform: translateX(-50%);
+    z-index: 5;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(22, 38, 26, .55);
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .5s ease;
+    white-space: nowrap;
+  }
+
+  #hint.show { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .toast, .stars .on, #barkChip.punch, .pill.pulse { animation: none !important; }
+  }
+</style>
 </head>
 <body>
-  <canvas id="game"></canvas>
-  <button id="restart">↻</button>
+<div id="stage">
+  <canvas id="game" aria-label="Campo di gioco"></canvas>
 
-  <div id="overlay">
-    <div id="overlayCard">
-      <h1 id="ovTitle">BORDER COLLIE HERDING</h1>
-      <p id="ovBody">
-        Prototype draw-to-move<br><br>
-        <b>DISEGNA</b> il percorso del Border Collie<br>
-        <b>TAP RAPIDO</b> = abbaio / morso alle caviglie<br>
-        <b>OBIETTIVO</b> = porta tutte le pecore nel recinto<br><br>
-        Più sei veloce, migliore è il tempo finale.
-      </p>
-      <button id="ovBtn">INIZIA ▶</button>
-      <p class="small">Niente AI · grafica placeholder · solo calibrazione movimento e gregge</p>
+  <div id="hud">
+    <div class="hud-group">
+      <div class="pill" id="pillTime"><span class="ic">⏱</span><span id="hudTime">0:00</span></div>
+      <div class="pill" id="pillCount"><span class="ic">🐑</span><span id="hudCount">0/8</span></div>
+    </div>
+    <div class="hud-group">
+      <div class="pill best" id="pillBest"><span class="ic">★</span><span id="hudBest">--</span></div>
+      <button id="btnSound" class="icon-btn" aria-label="Attiva o disattiva l'audio">
+        <svg class="ic-on" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.2 8.6a4.8 4.8 0 0 1 0 6.8"/><path d="M18 6.2a8.2 8.2 0 0 1 0 11.6"/></svg>
+        <svg class="ic-off" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9.5 4.5 5"/><path d="m20.5 9.5-4.5 5"/></svg>
+      </button>
+      <button id="btnRestart" class="icon-btn" aria-label="Ricomincia il livello">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 1 1-2.7-6.2"/><path d="M20.5 3.5v4.2h-4.2"/></svg>
+      </button>
     </div>
   </div>
 
-  <script>
-    'use strict';
+  <div id="barkChip">
+    <div class="ring"></div>
+    <div class="chip-icon">🐶</div>
+  </div>
 
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
-    const overlay = document.getElementById('overlay');
-    const ovTitle = document.getElementById('ovTitle');
-    const ovBody = document.getElementById('ovBody');
-    const ovBtn = document.getElementById('ovBtn');
-    const restartBtn = document.getElementById('restart');
+  <div id="toasts"></div>
+  <div id="hint">Disegna col dito: il cane segue la linea</div>
 
-    // ------------------------------------------------------------
-    // COSTANTI DI CALIBRAZIONE
-    // ------------------------------------------------------------
+  <div id="startScreen" class="screen">
+    <div class="card">
+      <div class="eyebrow">v2 · fiume, anatre e pecore matte</div>
+      <h1>BORDER COLLIE<br>HERDING</h1>
+      <p class="lead">Otto pecore, un fiume, quattro anatre permalose.<br>E un cane che sa il fatto suo.</p>
+      <ul class="how">
+        <li><span class="em">✏️</span><span><b>Disegna</b> col dito: il Border Collie segue la linea, anche quando togli il dito.</span></li>
+        <li><span class="em">🐾</span><span><b>Tocca e rilascia</b>: abbaio con onda sonora e piccolo morso alle caviglie.</span></li>
+        <li><span class="em">🏡</span><span><b>Obiettivo</b>: tutte le pecore nel recinto. Anche quelle matte.</span></li>
+      </ul>
+      <button id="btnStart" class="primary">INIZIA ▶</button>
+      <div class="foot" id="startFoot">Sessione breve · un dito · niente scroll</div>
+    </div>
+  </div>
 
-    // Cane
-    const DOG_SPEED = 285;
-    const DOG_STEER = 9.5;
-    const DOG_LOOKAHEAD = 46;
+  <div id="endScreen" class="screen hidden">
+    <div class="card">
+      <div class="stars" id="endStars"></div>
+      <h2 id="endTitle">GREGGE RADUNATO!</h2>
+      <p class="lead" id="endSub">Le pecore sono nel recinto.</p>
+      <div class="stats" id="endStats"></div>
+      <button id="btnRetry" class="primary">RIPROVA</button>
+      <div class="foot" id="endFoot"></div>
+    </div>
+  </div>
+</div>
 
-    // Disegno percorso
-    const DRAW_MIN_POINT_DIST = 10;
-    const PATH_PRUNE_RADIUS = 16;
+<script>
+'use strict';
+/* ==================================================================
+   BORDER COLLIE HERDING — v2
+   Canvas 2D · JS vanilla · un solo dito · nessuna dipendenza
 
-    // Abbaio / morso
-    const BARK_TIME = 0.45;
-    const DOG_RADIUS = 98;
-    const BARK_RADIUS = 185;
-    const FLEE_FORCE = 520;
-    const BARK_FORCE = 1150;
+   Struttura del file:
+     1. CONFIG              — tutte le costanti di calibrazione
+     2. UTIL                — matematica, random, formattazione
+     3. AUDIO               — sintesi procedurale WebAudio (nessun asset)
+     4. VIEW / LAYOUT       — stage, campo, recinto, fiume, ponte
+     5. SCENOGRAFIA         — sfondo statico pre-renderizzato (1 volta)
+     6. ENTITÀ              — dog, sheep, ducks, particelle, path
+     7. UPDATE              — simulazione (flocking, acqua, recinto)
+     8. DRAW                — rendering
+     9. GAME LOOP / INPUT   — state machine, pointer events, UI
+   ================================================================== */
 
-    // Pecore
-    const SHEEP_COUNT = 8;
-    const SHEEP_MAX_SPEED = 125;
-    const SHEEP_MAX_SPEED_PANIC = 195;
-    const PERCEPTION = 78;
-    const SEPARATION_DIST = 30;
+/* ------------------------------------------------------------------
+   1. CONFIG — calibra qui, non nel resto del codice
+------------------------------------------------------------------ */
+const CONFIG = {
 
-    const COHESION = 1.35;
-    const ALIGNMENT = 2.1;
-    const SEPARATION = 210;
+  /* --- CANE ------------------------------------------------------ */
+  dog: {
+    speed: 300,          // px/s velocità massima
+    steer: 11,           // reattività dello steering (più alto = più secco)
+    lookahead: 48,       // px di percorso guardati avanti (curve morbide)
+    arriveSlow: 6.5,     // rallentamento sull'ultimo punto
+    minPointDist: 12,    // distanza minima tra punti del percorso
+    pruneRadius: 22,     // il percorso dietro al cane viene eliminato
+    turnSmooth: 9,       // smoothing della rotazione del corpo
+    waterSlow: 0.34,     // moltiplicatore velocità in acqua profonda
+    fordSlow: 0.78,      // moltiplicatore velocità nel guado
+    dustRate: 0.055,     // intervallo particelle polvere (s)
+  },
 
-    const PEN_PULL_ACTIVE = 56;
-    const PEN_PULL_NEAR = 30;
-    const BOUNDARY_FORCE = 620;
-    const FRICTION = 1.35;
+  /* --- ABBAIO ---------------------------------------------------- */
+  bark: {
+    radius: 195,         // raggio d'azione
+    force: 1250,         // spinta sulle pecore
+    cooldown: 0.75,      // secondi tra due abbai
+    duration: 0.42,      // durata dell'onda sonora attiva
+    duckRadius: 210,     // raggio entro cui le anatre si offendono
+    duckStartleMin: 1.2,
+    duckStartleMax: 2.0,
+  },
 
-    // ------------------------------------------------------------
-    // VIEW / RESIZE
-    // ------------------------------------------------------------
-    let dpr = 1;
-    let viewW = 0;
-    let viewH = 0;
+  /* --- PECORE ---------------------------------------------------- */
+  sheep: {
+    count: 8,
+    radius: 13,
+    maxSpeed: 112,
+    panicSpeed: 180,
+    perception: 82,
+    separationDist: 33,
+    cohesion: 1.30,
+    alignment: 2.00,
+    separation: 240,
+    fleeRadius: 118,
+    fleeForce: 640,
+    wander: 26,
+    wanderSpeed: 1.1,
+    waterAvoid: 1050,    // repulsione dalla riva (prima di bagnarsi)
+    waterEscape: 900,    // spinta per tornare sulla riva se è già in acqua
+    bankFunnel: 320,     // spinta lungo la riva verso il passaggio
+    waterSlow: 0.50,     // velocità in acqua
+    penPull: 1.55,       // attrazione verso il cancello (quando spinta)
+    penRange: 190,       // distanza entro cui il recinto "chiama"
+    friction: 2.2,
+  },
 
-    const pen = {
-      x: 0,
-      y: 0,
-      w: 0,
-      h: 0
-    };
+  /* --- PECORE RIBELLI -------------------------------------------- */
+  rebel: {
+    minCount: 1,         // SEMPRE almeno una
+    maxCount: 2,
+    cohesion: 0.30,      // quasi ignorano il gregge
+    alignment: 0.28,
+    separation: 0.95,
+    wander: 2.5,
+    speedMult: 1.10,
+    barkMult: 1.65,      // reagiscono molto all'abbaio
+    grazeMin: 1.1,       // secondi di "bruco e me ne frego"
+    grazeMax: 3.4,
+    dartSpeed: 235,
+    dartChance: 0.9,     // probabilità/10s di scatto improvviso
+  },
 
-    const dog = {
-      x: 0,
-      y: 0,
-      vx: 0,
-      vy: 0,
-      angle: -Math.PI / 2,
-      bark: 0
-    };
+  /* --- ANATRE ---------------------------------------------------- */
+  ducks: {
+    count: 4,
+    speed: 30,
+    bobAmp: 6,
+    startleBoost: 3.2,
+    wakeRate: 0.14,
+  },
 
-    let sheep = [];
-    let path = [];
+  /* --- FIUME / PONTE --------------------------------------------- */
+  water: {
+    bridgeHalf: 0.105,   // metà larghezza ponte (frazione della viewport)
+    fordHalf: 0.078,
+    waveAmp: 7,
+  },
 
-    function resize() {
-      dpr = Math.min(2, window.devicePixelRatio || 1);
-      viewW = window.innerWidth;
-      viewH = window.innerHeight;
+  /* --- RECINTO --------------------------------------------------- */
+  pen: {
+    widthRatio: 0.70,
+    maxWidth: 300,
+    heightRatio: 0.165,
+    gateRatio: 0.30,     // frazione della larghezza recinto
+  },
 
-      canvas.width = Math.floor(viewW * dpr);
-      canvas.height = Math.floor(viewH * dpr);
-      canvas.style.width = viewW + 'px';
-      canvas.style.height = viewH + 'px';
+  /* --- STELLE / PUNTEGGIO ---------------------------------------- */
+  stars: {
+    three: 55,           // secondi per 3 stelle
+    two: 90,             // secondi per 2 stelle
+    maxWasted: 4,        // abbai a vuoto concessi per le 3 stelle
+  },
 
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  /* --- FEEL ------------------------------------------------------ */
+  feel: {
+    shakeOnPen: 2.4,
+    shakeDecay: 12,
+    maxParticles: 180,
+  },
+};
 
-      pen.w = Math.min(300, viewW * 0.68);
-      pen.h = Math.max(110, viewH * 0.16);
-      pen.x = (viewW - pen.w) / 2;
-      pen.y = Math.max(68, viewH * 0.10);
+/* ------------------------------------------------------------------
+   2. UTIL
+------------------------------------------------------------------ */
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+const rand = (a = 0, b = 1) => a + Math.random() * (b - a);
+const randInt = (a, b) => Math.floor(rand(a, b + 1));
+const dist2 = (x1, y1, x2, y2) => { const dx = x2 - x1, dy = y2 - y1; return dx * dx + dy * dy; };
+const dist = (x1, y1, x2, y2) => Math.sqrt(dist2(x1, y1, x2, y2));
+const smoothing = (cur, target, rate, dt) => cur + (target - cur) * (1 - Math.exp(-rate * dt));
 
-      dog.x = clamp(dog.x || viewW / 2, 18, viewW - 18);
-      dog.y = clamp(dog.y || viewH - 120, 18, viewH - 18);
+function angleLerp(a, b, t) {
+  let d = ((b - a + Math.PI) % TAU + TAU) % TAU - Math.PI;
+  return a + d * t;
+}
 
-      for (const s of sheep) {
-        s.x = clamp(s.x, 16, viewW - 16);
-        s.y = clamp(s.y, 16, viewH - 16);
-      }
-    }
+function formatTime(sec) {
+  const s = Math.max(0, sec);
+  const m = Math.floor(s / 60);
+  const r = Math.floor(s % 60);
+  return m + ':' + String(r).padStart(2, '0');
+}
 
-    window.addEventListener('resize', resize);
-    resize();
+// RNG deterministico: lo sfondo non cambia forma a ogni resize
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
-    // ------------------------------------------------------------
-    // STATO GIOCO
-    // ------------------------------------------------------------
-    let state = 'ready'; // ready | play | end
-    let time = 0;
-    let animTime = 0;
-    let pennedCount = 0;
+// rect arrotondato (compatibile anche con Safari vecchi)
+function rr(g, x, y, w, h, r) {
+  const rad = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
+  g.beginPath();
+  g.moveTo(x + rad, y);
+  g.lineTo(x + w - rad, y);
+  g.quadraticCurveTo(x + w, y, x + w, y + rad);
+  g.lineTo(x + w, y + h - rad);
+  g.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+  g.lineTo(x + rad, y + h);
+  g.quadraticCurveTo(x, y + h, x, y + h - rad);
+  g.lineTo(x, y + rad);
+  g.quadraticCurveTo(x, y, x + rad, y);
+  g.closePath();
+}
 
-    let best = 0;
+function ellipse(g, x, y, rx, ry, rot) {
+  g.beginPath();
+  g.ellipse(x, y, Math.abs(rx), Math.abs(ry), rot || 0, 0, TAU);
+}
+
+/* ------------------------------------------------------------------
+   3. AUDIO — sintesi procedurale, zero asset
+------------------------------------------------------------------ */
+const Sound = (() => {
+  let ac = null, master = null, noiseBuf = null;
+  let enabled = true;
+  let lastBleat = 0;
+
+  function ensure() {
     try {
-      best = Number(localStorage.getItem('bc_herding_best') || 0);
-    } catch (err) {
-      best = 0;
+      if (!ac) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        ac = new AC();
+        master = ac.createGain();
+        master.gain.value = 0.55;
+        master.connect(ac.destination);
+
+        // buffer di rumore riusato (bark, splash, vento)
+        const len = Math.floor(ac.sampleRate * 0.5);
+        noiseBuf = ac.createBuffer(1, len, ac.sampleRate);
+        const d = noiseBuf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      }
+      if (ac.state === 'suspended') ac.resume();
+      return ac;
+    } catch (e) { return null; }
+  }
+
+  function unlock() { ensure(); }
+
+  function now() { return ac ? ac.currentTime : 0; }
+
+  function tone(o) {
+    if (!enabled) return;
+    const a = ensure(); if (!a) return;
+    try {
+      const t0 = now() + (o.delay || 0);
+      const osc = a.createOscillator();
+      const g = a.createGain();
+      osc.type = o.type || 'sine';
+      osc.frequency.setValueAtTime(o.f1, t0);
+      if (o.f2 && o.f2 !== o.f1) osc.frequency.exponentialRampToValueAtTime(Math.max(20, o.f2), t0 + o.dur);
+      const v = (o.vol || 0.2);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(v, t0 + (o.attack || 0.012));
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + o.dur);
+      osc.connect(g); g.connect(master);
+      osc.start(t0); osc.stop(t0 + o.dur + 0.02);
+    } catch (e) { /* ignora */ }
+  }
+
+  function noise(o) {
+    if (!enabled) return;
+    const a = ensure(); if (!a) return;
+    try {
+      const t0 = now() + (o.delay || 0);
+      const src = a.createBufferSource();
+      src.buffer = noiseBuf;
+      const f = a.createBiquadFilter();
+      f.type = o.filter || 'bandpass';
+      f.frequency.setValueAtTime(o.freq || 1200, t0);
+      f.Q.value = o.q || 1;
+      const g = a.createGain();
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(o.vol || 0.15, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + o.dur);
+      src.connect(f); f.connect(g); g.connect(master);
+      src.start(t0); src.stop(t0 + o.dur + 0.02);
+    } catch (e) { /* ignora */ }
+  }
+
+  return {
+    unlock,
+    get enabled() { return enabled; },
+    set enabled(v) { enabled = v; if (v) ensure(); },
+
+    bark() {
+      tone({ f1: 460, f2: 170, dur: 0.16, type: 'sawtooth', vol: 0.26 });
+      tone({ f1: 300, f2: 120, dur: 0.2, type: 'square', vol: 0.1, delay: 0.02 });
+      noise({ freq: 1400, dur: 0.14, vol: 0.16, filter: 'bandpass', q: 0.8 });
+    },
+
+    bleat(pitch) {
+      const t = performance.now();
+      if (t - lastBleat < 110) return;
+      lastBleat = t;
+      const f = 330 * (pitch || 1);
+      tone({ f1: f, f2: f * 0.82, dur: 0.28, type: 'sawtooth', vol: 0.055 });
+      tone({ f1: f * 1.5, f2: f * 1.2, dur: 0.22, type: 'triangle', vol: 0.035 });
+    },
+
+    quack() {
+      tone({ f1: 420, f2: 250, dur: 0.11, type: 'square', vol: 0.07 });
+      noise({ freq: 900, dur: 0.1, vol: 0.05 });
+    },
+
+    splash() {
+      noise({ freq: 2200, dur: 0.22, vol: 0.09, filter: 'highpass', q: 0.6 });
+      tone({ f1: 220, f2: 90, dur: 0.1, type: 'sine', vol: 0.05 });
+    },
+
+    sparkle() {
+      tone({ f1: 880, f2: 1320, dur: 0.14, type: 'sine', vol: 0.09 });
+      tone({ f1: 1320, f2: 1760, dur: 0.16, type: 'sine', vol: 0.06, delay: 0.07 });
+    },
+
+    success() {
+      const notes = [523.25, 659.25, 783.99, 1046.5];
+      notes.forEach((f, i) => tone({ f1: f, f2: f, dur: 0.32, type: 'triangle', vol: 0.12, delay: i * 0.09 }));
+    },
+
+    click() { tone({ f1: 300, f2: 420, dur: 0.06, type: 'sine', vol: 0.06 }); },
+  };
+})();
+
+/* ------------------------------------------------------------------
+   4. VIEW / LAYOUT
+------------------------------------------------------------------ */
+const stageEl = document.getElementById('stage');
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d', { alpha: false });
+
+let W = 390, H = 844;      // dimensioni logiche della stage (CSS px)
+let S = 1;                 // fattore di scala per gli sprite
+let DPR = 1;
+
+const view = {
+  fieldTop: 62,
+  pen: { x: 0, y: 0, w: 0, h: 0, gateX: 0, gateW: 0, bottom: 0 },
+  river: { y: 0, half: 0, top: 0, bottom: 0 },
+  bridge: { x: 0, half: 0, top: 0, bottom: 0 },
+  ford: { x: 0, half: 0, top: 0, bottom: 0 },
+};
+
+/* Profilo del fiume: due sinusoidi sommate = rive organiche ma deterministiche */
+function riverTopAt(x) {
+  return view.river.y - view.river.half
+    + Math.sin(x * 0.0122 + 1.1) * CONFIG.water.waveAmp
+    + Math.sin(x * 0.0261) * 3.2;
+}
+function riverBottomAt(x) {
+  return view.river.y + view.river.half
+    + Math.sin(x * 0.0109 - 0.7) * CONFIG.water.waveAmp
+    + Math.sin(x * 0.0233 + 2.2) * 3.2;
+}
+
+/* Acqua "vera" (profonda) vs passaggi */
+function inBridge(x) { return Math.abs(x - view.bridge.x) < view.bridge.half; }
+function inFord(x) { return Math.abs(x - view.ford.x) < view.ford.half; }
+function isWaterBand(x, y, pad) {
+  const p = pad || 0;
+  return y > riverTopAt(x) - p && y < riverBottomAt(x) + p;
+}
+function isDeepWater(x, y) {
+  return isWaterBand(x, y, 0) && !inBridge(x) && !inFord(x);
+}
+function isCrossing(x) { return inBridge(x) || inFord(x); }
+
+function nearestCrossingX(x) {
+  return Math.abs(x - view.bridge.x) < Math.abs(x - view.ford.x) ? view.bridge.x : view.ford.x;
+}
+
+function resizeCanvas() {
+  const vw = Math.max(240, window.innerWidth);
+  const vh = Math.max(360, window.innerHeight);
+
+  let w = vw, h = vh;
+  // Desktop / tablet orizzontale: stage in formato verticale centrata
+  if (vw > 620) {
+    w = Math.min(vw, Math.max(360, Math.min(480, vh * 0.62)));
+    h = Math.min(vh, 1000);
+  }
+
+  stageEl.style.width = w + 'px';
+  stageEl.style.height = h + 'px';
+  stageEl.style.left = Math.round((vw - w) / 2) + 'px';
+  stageEl.style.top = Math.round((vh - h) / 2) + 'px';
+
+  W = Math.round(w);
+  H = Math.round(h);
+  S = clamp(Math.min(W / 390, H / 800), 0.74, 1.30);
+
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(W * DPR);
+  cv.height = Math.round(H * DPR);
+  cv.style.width = W + 'px';
+  cv.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  buildLayout();
+  renderScenery();
+  rebuildDecorForNewSize();
+}
+
+/* Dopo un resize: ricostruisce acqua/decorazioni e riporta gli animali nel campo */
+function rebuildDecorForNewSize() {
+  buildWaterDecor();
+  for (const d of ducks) {
+    d.x = clamp(d.x, 24, W - 24);
+    d.y = clamp(d.y, riverTopAt(d.x) + 16, riverBottomAt(d.x) - 16);
+    d.depth = clamp((d.y - riverTopAt(d.x) - 16) / Math.max(1, riverBottomAt(d.x) - riverTopAt(d.x) - 32), 0.15, 0.85);
+  }
+  for (const s of sheep) {
+    s.x = clamp(s.x, 20, W - 20);
+    s.y = clamp(s.y, view.fieldTop + 26, H - 18);
+  }
+  if (sheep.length) buildPenSpots(CONFIG.sheep.count);
+}
+
+function buildLayout() {
+  const v = view;
+  v.W = W; v.H = H; v.S = S;
+
+  // margine superiore sotto l'HUD
+  v.fieldTop = Math.round(clamp(H * 0.075, 54, 76));
+
+  // --- recinto: appoggiato al muro alto del campo ---
+  const penW = Math.min(W * CONFIG.pen.widthRatio, CONFIG.pen.maxWidth);
+  const penH = clamp(H * CONFIG.pen.heightRatio, 92, 152);
+  v.pen.w = penW;
+  v.pen.h = penH;
+  v.pen.x = (W - penW) / 2;
+  v.pen.y = v.fieldTop;
+  v.pen.bottom = v.pen.y + penH;
+  v.pen.gateW = clamp(penW * CONFIG.pen.gateRatio, 44, 76);
+  v.pen.gateX = W / 2;
+
+  // --- fiume ---
+  v.river.y = Math.round(H * 0.585);
+  v.river.half = clamp(H * 0.062, 26, 58);
+  v.river.top = v.river.y - v.river.half;
+  v.river.bottom = v.river.y + v.river.half;
+
+  // --- ponte e guado ---
+  v.bridge.half = clamp(W * CONFIG.water.bridgeHalf, 30, 52);
+  v.bridge.x = Math.round(W * 0.30);
+  v.bridge.top = riverTopAt(v.bridge.x) - 14;
+  v.bridge.bottom = riverBottomAt(v.bridge.x) + 14;
+
+  v.ford.half = clamp(W * CONFIG.water.fordHalf, 22, 38);
+  v.ford.x = Math.round(W * 0.72);
+  v.ford.top = riverTopAt(v.ford.x) - 8;
+  v.ford.bottom = riverBottomAt(v.ford.x) + 8;
+}
+/* ------------------------------------------------------------------
+   5. SCENOGRAFIA — pre-renderizzata una sola volta per resize
+      (erba, fiume, ponte, guado, recinto, siepi, vignettatura)
+------------------------------------------------------------------ */
+const bgCanvas = document.createElement('canvas');
+let bg = bgCanvas.getContext('2d');
+
+let ripples = [];
+let waterLines = [];
+let gateGlow = 0;
+
+function renderScenery() {
+  bgCanvas.width = Math.round(W * DPR);
+  bgCanvas.height = Math.round(H * DPR);
+  bg = bgCanvas.getContext('2d');
+  bg.setTransform(DPR, 0, 0, DPR, 0, 0);
+  bg.clearRect(0, 0, W, H);
+
+  drawGrass(bg);
+  drawRiverBase(bg);
+  drawBridgeDeck(bg);
+  drawFord(bg);
+  drawPen(bg);
+  drawHedge(bg);
+  drawVignette(bg);
+
+  buildWaterDecor();
+}
+
+/* --- prato ------------------------------------------------------- */
+
+/* macchia morbida: gradiente radiale ellittico, creato una volta per resize */
+function softBlob(g, x, y, rx, ry, rgba) {
+  g.save();
+  g.translate(x, y);
+  g.scale(rx, ry);
+  const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1);
+  gr.addColorStop(0, rgba);
+  gr.addColorStop(0.5, rgba);
+  gr.addColorStop(1, rgba.replace(/[\d.]+\)$/, '0)'));
+  g.fillStyle = gr;
+  g.beginPath(); g.arc(0, 0, 1, 0, TAU); g.fill();
+  g.restore();
+}
+
+/* punto dentro il recinto? (per non sporcarlo con erba e fiori) */
+function insidePen(x, y, pad) {
+  const p = view.pen;
+  return x > p.x - pad && x < p.x + p.w + pad && y > p.y - pad && y < p.bottom + pad;
+}
+
+function drawGrass(g) {
+  const grd = g.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, '#94d368');
+  grd.addColorStop(0.45, '#87c95d');
+  grd.addColorStop(1, '#72b64c');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, W, H);
+
+  const rnd = mulberry32(20261020);
+
+  // chiazze morbide di verde (gradienti creati una sola volta)
+  for (let i = 0; i < 22; i++) {
+    const x = rnd() * W, y = rnd() * H;
+    const rx = 70 + rnd() * 130, ry = 50 + rnd() * 90;
+    const light = rnd() > 0.5;
+    softBlob(g, x, y, rx, ry, light ? 'rgba(198,236,150,0.26)' : 'rgba(54,108,40,0.16)');
+  }
+
+  // chiazze di terra battuta (sentieri delle pecore)
+  const dirt = [
+    [W * 0.5, view.pen.bottom + 34, W * 0.17, 52],
+    [view.bridge.x, (view.bridge.top + view.bridge.bottom) / 2, 40, H * 0.16],
+    [W * 0.5, H * 0.84, W * 0.20, 50],
+    [W * 0.2, H * 0.9, 40, 26],
+    [W * 0.8, H * 0.74, 34, 22],
+  ];
+  for (const [x, y, rx, ry] of dirt) {
+    softBlob(g, x, y, rx, ry, 'rgba(203,178,124,0.30)');
+  }
+
+  // ciuffi d'erba: piccoli e fitti, non devono sembrare frecce
+  g.lineCap = 'round';
+  for (let i = 0; i < 260; i++) {
+    const x = 6 + rnd() * (W - 12);
+    const y = 20 + rnd() * (H - 20);
+    if (isWaterBand(x, y, 6)) continue;
+    if (insidePen(x, y, 14)) continue;
+    const s = 0.55 + rnd() * 0.45;
+    const dark = rnd() > 0.5;
+    g.strokeStyle = dark ? 'rgba(66,124,44,0.42)' : 'rgba(200,238,152,0.45)';
+    g.lineWidth = 1.2;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.quadraticCurveTo(x - 1.6 * s, y - 3.4 * s, x - 3.4 * s, y - 5.6 * s);
+    g.moveTo(x, y);
+    g.quadraticCurveTo(x, y - 4 * s, x + 0.8 * s, y - 7 * s);
+    g.moveTo(x, y);
+    g.quadraticCurveTo(x + 2 * s, y - 3 * s, x + 3.6 * s, y - 5 * s);
+    g.stroke();
+  }
+
+  // fiorellini
+  for (let i = 0; i < 26; i++) {
+    const x = 10 + rnd() * (W - 20);
+    const y = view.fieldTop + 20 + rnd() * (H - view.fieldTop - 30);
+    if (isWaterBand(x, y, 8)) continue;
+    const pal = ['#ffffff', '#fff2a8', '#ffd6e6', '#dff0ff'][Math.floor(rnd() * 4)];
+    g.fillStyle = pal;
+    for (let k = 0; k < 4; k++) {
+      const a = (k / 4) * TAU;
+      ellipse(g, x + Math.cos(a) * 2.1, y + Math.sin(a) * 2.1, 1.9, 1.9, 0); g.fill();
+    }
+    g.fillStyle = '#ffcb3d';
+    ellipse(g, x, y, 1.5, 1.5, 0); g.fill();
+  }
+
+  // sassolini
+  for (let i = 0; i < 14; i++) {
+    const x = 8 + rnd() * (W - 16);
+    const y = view.fieldTop + 30 + rnd() * (H - view.fieldTop - 40);
+    if (isWaterBand(x, y, 10)) continue;
+    g.fillStyle = 'rgba(60,90,50,0.12)';
+    ellipse(g, x + 1, y + 1.5, 3.4, 2.4, 0); g.fill();
+    g.fillStyle = '#cfd9c4';
+    ellipse(g, x, y, 3, 2.1, 0); g.fill();
+  }
+}
+
+/* --- fiume: rive + acqua ----------------------------------------- */
+function traceRiver(g, pad) {
+  const p = pad || 0;
+  g.beginPath();
+  const step = Math.max(8, Math.round(W / 34));
+  g.moveTo(-8, riverTopAt(-8) - p);
+  for (let x = -8; x <= W + 8; x += step) g.lineTo(x, riverTopAt(x) - p);
+  for (let x = W + 8; x >= -8; x -= step) g.lineTo(x, riverBottomAt(x) + p);
+  g.closePath();
+}
+
+function drawRiverBase(g) {
+  const v = view;
+
+  // riva sabbiosa (leggermente più larga dell'acqua)
+  g.save();
+  g.fillStyle = 'rgba(72,120,50,0.16)';
+  traceRiver(g, 14); g.fill();
+  g.fillStyle = '#d9c79b';
+  traceRiver(g, 9); g.fill();
+  g.fillStyle = '#cbb787';
+  traceRiver(g, 4); g.fill();
+  g.restore();
+
+  // acqua
+  const grd = g.createLinearGradient(0, v.river.y - v.river.half, 0, v.river.y + v.river.half);
+  grd.addColorStop(0, '#6cc7ea');
+  grd.addColorStop(0.35, '#46a9d8');
+  grd.addColorStop(1, '#2c7fb5');
+  g.fillStyle = grd;
+  traceRiver(g, 0); g.fill();
+
+  // bordo bagnato scuro vicino alle rive
+  g.save();
+  traceRiver(g, 0); g.clip();
+  g.strokeStyle = 'rgba(20,80,110,0.20)';
+  g.lineWidth = 6;
+  g.beginPath();
+  const step = Math.max(8, Math.round(W / 34));
+  g.moveTo(-8, riverTopAt(-8) + 3);
+  for (let x = -8; x <= W + 8; x += step) g.lineTo(x, riverTopAt(x) + 3);
+  g.stroke();
+  g.beginPath();
+  g.moveTo(-8, riverBottomAt(-8) - 3);
+  for (let x = -8; x <= W + 8; x += step) g.lineTo(x, riverBottomAt(x) - 3);
+  g.stroke();
+
+  // riflessi chiari
+  g.strokeStyle = 'rgba(255,255,255,0.22)';
+  g.lineWidth = 2.2;
+  g.lineCap = 'round';
+  const rnd = mulberry32(7);
+  for (let i = 0; i < 16; i++) {
+    const x = rnd() * W;
+    const y = v.river.y - v.river.half * 0.6 + rnd() * v.river.half * 1.2;
+    const len = 10 + rnd() * 26;
+    g.beginPath(); g.moveTo(x, y);
+    g.quadraticCurveTo(x + len * 0.5, y - 1.6, x + len, y);
+    g.stroke();
+  }
+  g.restore();
+
+  // sassi sulle rive
+  const rnd2 = mulberry32(31);
+  for (let i = 0; i < 20; i++) {
+    const x = 10 + rnd2() * (W - 20);
+    const top = rnd2() > 0.5;
+    const y = (top ? riverTopAt(x) - 5 : riverBottomAt(x) + 5) + (rnd2() - 0.5) * 6;
+    const r = 3 + rnd2() * 4;
+    g.fillStyle = 'rgba(40,60,30,0.18)';
+    ellipse(g, x + 1, y + 2, r, r * 0.62, 0); g.fill();
+    g.fillStyle = rnd2() > 0.5 ? '#c8c4b0' : '#b3ad9a';
+    ellipse(g, x, y, r, r * 0.62, 0); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.4)';
+    ellipse(g, x - r * 0.25, y - r * 0.2, r * 0.4, r * 0.24, 0); g.fill();
+  }
+
+  // canne / erba alta sulle rive
+  g.lineCap = 'round';
+  for (let i = 0; i < 18; i++) {
+    const x = 12 + rnd2() * (W - 24);
+    const top = rnd2() > 0.5;
+    const baseY = top ? riverTopAt(x) - 6 : riverBottomAt(x) + 7;
+    if (inBridge(x) || inFord(x)) continue;
+    const h = 8 + rnd2() * 10;
+    g.strokeStyle = 'rgba(72,130,50,0.75)';
+    g.lineWidth = 1.8;
+    for (let k = -1; k <= 1; k++) {
+      g.beginPath();
+      g.moveTo(x + k * 2.5, baseY);
+      g.quadraticCurveTo(x + k * 2.5 + h * 0.3, baseY - h * 0.6, x + k * 2.5 + h * 0.55, baseY - h);
+      g.stroke();
+    }
+  }
+}
+
+/* --- ponte: parte dietro agli animali ---------------------------- */
+function drawBridgeDeck(g) {
+  const b = view.bridge;
+  const x = b.x - b.half;
+  const w = b.half * 2;
+  const y = b.top;
+  const h = b.bottom - b.top;
+
+  // ombra sull'acqua
+  g.fillStyle = 'rgba(10,50,70,0.22)';
+  rr(g, x + 5, y + 8, w, h, 8); g.fill();
+
+  // travi portanti
+  g.fillStyle = '#7c4e24';
+  rr(g, x - 3, y + 4, w + 6, h - 8, 7); g.fill();
+
+  // impalcato
+  g.fillStyle = '#c98f52';
+  rr(g, x, y, w, h, 6); g.fill();
+
+  // assi
+  g.strokeStyle = 'rgba(112,66,26,0.45)';
+  g.lineWidth = 1.6;
+  for (let py = y + 7; py < y + h - 3; py += 10) {
+    g.beginPath(); g.moveTo(x + 2, py); g.lineTo(x + w - 2, py); g.stroke();
+  }
+
+  // luce sull'impalcato
+  const grd = g.createLinearGradient(x, 0, x + w, 0);
+  grd.addColorStop(0, 'rgba(255,220,170,0.25)');
+  grd.addColorStop(0.5, 'rgba(255,235,190,0.12)');
+  grd.addColorStop(1, 'rgba(60,30,10,0.14)');
+  g.fillStyle = grd;
+  rr(g, x, y, w, h, 6); g.fill();
+
+  // chiodi
+  g.fillStyle = 'rgba(70,44,18,0.5)';
+  for (let py = y + 7; py < y + h - 3; py += 10) {
+    ellipse(g, x + 6, py, 1.3, 1.3, 0); g.fill();
+    ellipse(g, x + w - 6, py, 1.3, 1.3, 0); g.fill();
+  }
+}
+
+/* --- guado: acqua bassa + sassi --------------------------------- */
+function drawFord(g) {
+  const f = view.ford;
+  const x = f.x - f.half;
+  const y = f.top;
+  const h = f.bottom - f.top;
+
+  g.save();
+  // fondale basso e sabbioso: si capisce che qui si può passare
+  const fg = g.createLinearGradient(x, y, x + f.half * 2, y);
+  fg.addColorStop(0, 'rgba(196,206,180,0.30)');
+  fg.addColorStop(0.5, 'rgba(168,214,224,0.55)');
+  fg.addColorStop(1, 'rgba(196,206,180,0.30)');
+  g.fillStyle = fg;
+  rr(g, x, y, f.half * 2, h, 14); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,0.45)';
+  g.lineWidth = 2;
+  g.beginPath(); g.moveTo(x + 4, y + 10); g.lineTo(x + 4, y + h - 10); g.stroke();
+  g.beginPath(); g.moveTo(x + f.half * 2 - 4, y + 10); g.lineTo(x + f.half * 2 - 4, y + h - 10); g.stroke();
+
+  // sassi emergenti (percorso)
+  const rnd = mulberry32(55);
+  for (let i = 0; i < 7; i++) {
+    const cx = f.x + (rnd() - 0.5) * (f.half * 1.25);
+    const cy = y + 8 + (i / 6) * (h - 16);
+    const r = 5 + rnd() * 3.5;
+    // schiuma attorno al sasso
+    g.fillStyle = 'rgba(255,255,255,0.30)';
+    ellipse(g, cx, cy + 1.5, r * 1.5, r * 1.0, 0); g.fill();
+    g.fillStyle = 'rgba(18,60,80,0.22)';
+    ellipse(g, cx + 1, cy + 2, r, r * 0.7, 0); g.fill();
+    g.fillStyle = '#b8b3a2';
+    ellipse(g, cx, cy, r, r * 0.7, 0); g.fill();
+    g.fillStyle = '#d5d0c0';
+    ellipse(g, cx - r * 0.2, cy - r * 0.18, r * 0.6, r * 0.36, 0); g.fill();
+  }
+  g.restore();
+}
+
+/* --- recinto ----------------------------------------------------- */
+function fencePost(g, x, y, h) {
+  const w = 8;
+  g.fillStyle = 'rgba(40,60,25,0.18)';
+  rr(g, x - w / 2 + 1.5, y - h / 2 + 2, w, h, 3); g.fill();
+  g.fillStyle = '#b3773c';
+  rr(g, x - w / 2, y - h / 2, w, h, 3); g.fill();
+  g.strokeStyle = '#7d4a1f';
+  g.lineWidth = 1.2;
+  rr(g, x - w / 2, y - h / 2, w, h, 3); g.stroke();
+  g.fillStyle = '#dda56b';
+  rr(g, x - w / 2 + 1.6, y - h / 2 + 2.2, w - 3.2, 3.6, 1.6); g.fill();
+}
+
+function railH(g, x1, x2, y) {
+  g.lineCap = 'round';
+  g.strokeStyle = '#8a5a2b';
+  g.lineWidth = 7;
+  g.beginPath(); g.moveTo(x1, y); g.lineTo(x2, y); g.stroke();
+  g.strokeStyle = '#cf9653';
+  g.lineWidth = 4;
+  g.beginPath(); g.moveTo(x1, y - 1.4); g.lineTo(x2, y - 1.4); g.stroke();
+}
+
+function railV(g, x, y1, y2) {
+  g.lineCap = 'round';
+  g.strokeStyle = '#8a5a2b';
+  g.lineWidth = 7;
+  g.beginPath(); g.moveTo(x, y1); g.lineTo(x, y2); g.stroke();
+  g.strokeStyle = '#cf9653';
+  g.lineWidth = 4;
+  g.beginPath(); g.moveTo(x - 1.4, y1); g.lineTo(x - 1.4, y2); g.stroke();
+}
+
+function drawPen(g) {
+  const p = view.pen;
+
+  // ombra del recinto sul prato
+  g.fillStyle = 'rgba(30,55,22,0.13)';
+  rr(g, p.x - 5, p.y + 3, p.w + 10, p.h + 10, 18); g.fill();
+
+  // paglia
+  const grd = g.createLinearGradient(0, p.y, 0, p.bottom);
+  grd.addColorStop(0, 'rgba(247,236,190,0.90)');
+  grd.addColorStop(1, '#eedb9f');
+  g.fillStyle = grd;
+  rr(g, p.x, p.y, p.w, p.h, 14); g.fill();
+
+  // texture paglia
+  const rnd = mulberry32(99);
+  g.strokeStyle = 'rgba(198,168,104,0.5)';
+  g.lineWidth = 1.5;
+  g.lineCap = 'round';
+  for (let i = 0; i < 80; i++) {
+    const x = p.x + 8 + rnd() * (p.w - 16);
+    const y = p.y + 8 + rnd() * (p.h - 12);
+    const a = (rnd() - 0.5) * 1.3;
+    const l = 3 + rnd() * 6;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+  }
+
+  // frecce sul terreno: "entra qui"
+  g.strokeStyle = 'rgba(150,116,54,0.35)';
+  g.lineWidth = 3.2;
+  g.lineCap = 'round';
+  for (let i = 0; i < 3; i++) {
+    const yy = p.bottom - 30 - i * 15;
+    g.beginPath();
+    g.moveTo(p.gateX - 11, yy + 6); g.lineTo(p.gateX, yy); g.lineTo(p.gateX + 11, yy + 6);
+    g.stroke();
+  }
+
+  // bordo interno
+  g.strokeStyle = 'rgba(140,104,44,0.22)';
+  g.lineWidth = 2;
+  rr(g, p.x + 4, p.y + 4, p.w - 8, p.h - 8, 12); g.stroke();
+
+  // --- staccionate ---
+  const step = 36;
+  const inset = 5;
+
+  // rails: alto, lati, basso (spezzato dal cancello)
+  railH(g, p.x + 4, p.x + p.w - 4, p.y + inset);
+  railV(g, p.x + inset, p.y + 4, p.bottom - 4);
+  railV(g, p.x + p.w - inset, p.y + 4, p.bottom - 4);
+
+  const gl = p.gateX - p.gateW / 2;
+  const gr = p.gateX + p.gateW / 2;
+
+  // sentiero di terra battuta davanti al cancello
+  const gp = g.createLinearGradient(0, p.bottom - 4, 0, p.bottom + 96);
+  gp.addColorStop(0, 'rgba(206,180,124,0.45)');
+  gp.addColorStop(1, 'rgba(206,180,124,0)');
+  g.fillStyle = gp;
+  g.beginPath();
+  g.moveTo(gl - 2, p.bottom - 4);
+  g.lineTo(gr + 2, p.bottom - 4);
+  g.lineTo(gr + 24, p.bottom + 96);
+  g.lineTo(gl - 24, p.bottom + 96);
+  g.closePath(); g.fill();
+
+  railH(g, p.x + 4, gl - 3, p.bottom - inset);
+  railH(g, gr + 3, p.x + p.w - 4, p.bottom - inset);
+
+  // paletti
+  for (let x = p.x + 4; x <= p.x + p.w - 4; x += step) {
+    fencePost(g, x, p.y + inset, 15);
+  }
+  for (let y = p.y + 16; y <= p.bottom - 4; y += step) {
+    fencePost(g, p.x + inset, y, 15);
+    fencePost(g, p.x + p.w - inset, y, 15);
+  }
+  for (let x = p.x + 4; x <= p.x + p.w - 4; x += step) {
+    if (Math.abs(x - p.gateX) < p.gateW / 2) continue;
+    fencePost(g, x, p.bottom - inset, 15);
+  }
+  // montanti del cancello: più grossi, così l'apertura si legge subito
+  fencePost(g, gl, p.bottom - inset, 23);
+  fencePost(g, gr, p.bottom - inset, 23);
+
+  // due ante aperte verso l'esterno
+  drawGateLeaf(g, gl, p.bottom - inset, -1);
+  drawGateLeaf(g, gr, p.bottom - inset, 1);
+}
+
+/* anta del cancello, aperta verso l'esterno */
+function drawGateLeaf(g, x, y, dir) {
+  const len = 28;
+  g.save();
+  g.translate(x, y);
+  g.rotate(dir * 0.62);
+  g.fillStyle = 'rgba(40,25,10,0.20)';
+  rr(g, -2, 3, 5, len, 2.5); g.fill();
+  g.fillStyle = '#c98f52';
+  rr(g, -2.5, 0, 5, len, 2.5); g.fill();
+  g.strokeStyle = '#7d4a1f'; g.lineWidth = 1.2;
+  rr(g, -2.5, 0, 5, len, 2.5); g.stroke();
+  g.strokeStyle = '#e6b47c'; g.lineWidth = 2;
+  for (const yy of [7, 15, 23]) {
+    g.beginPath(); g.moveTo(-3.5, yy); g.lineTo(3.5, yy); g.stroke();
+  }
+  g.restore();
+}
+
+/* --- siepi sul muro alto del campo ------------------------------- */
+function drawHedge(g) {
+  const p = view.pen;
+  const segs = [[-10, p.x - 6], [p.x + p.w + 6, W + 10]];
+  const rnd = mulberry32(12);
+
+  for (const [x1, x2] of segs) {
+    if (x2 - x1 < 10) continue;
+    g.fillStyle = 'rgba(28,60,24,0.20)';
+    rr(g, x1, view.fieldTop - 6, x2 - x1, 22, 10); g.fill();
+    for (let x = x1; x < x2; x += 15) {
+      const r = 9 + rnd() * 5;
+      g.fillStyle = rnd() > 0.5 ? '#4f8f3a' : '#447f33';
+      ellipse(g, x + rnd() * 6, view.fieldTop + 1 + (rnd() - 0.5) * 4, r, r * 0.9, 0); g.fill();
+      g.fillStyle = 'rgba(150,205,110,0.45)';
+      ellipse(g, x + 2, view.fieldTop - 3, r * 0.45, r * 0.32, 0); g.fill();
+    }
+  }
+}
+
+function drawVignette(g) {
+  const grd = g.createRadialGradient(W * 0.5, H * 0.45, Math.min(W, H) * 0.28, W * 0.5, H * 0.5, Math.max(W, H) * 0.78);
+  grd.addColorStop(0, 'rgba(0,0,0,0)');
+  grd.addColorStop(1, 'rgba(20,48,18,0.22)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, W, H);
+}
+
+/* --- decor animato dell'acqua (leggero) -------------------------- */
+function buildWaterDecor() {
+  ripples = [];
+  for (let i = 0; i < 15; i++) {
+    ripples.push({
+      x: rand(0, W),
+      off: rand(-0.85, 0.85),
+      r: rand(5, 18),
+      sp: rand(9, 22),
+      ph: rand(0, TAU),
+      a: rand(0.08, 0.2),
+    });
+  }
+  waterLines = [];
+  for (let i = 0; i < 3; i++) {
+    waterLines.push({ off: (i - 1) * 0.42, sp: rand(0.5, 1.1), ph: rand(0, TAU), a: 0.10 + i * 0.02 });
+  }
+}
+/* ------------------------------------------------------------------
+   6. ENTITÀ
+------------------------------------------------------------------ */
+
+/* --- storage sicuro (Safari privato non lancia) ------------------ */
+const Store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+};
+const BEST_KEY = 'bch2.best';
+const SOUND_KEY = 'bch2.sound';
+
+const game = {
+  state: 'menu',        // menu | playing | won
+  clock: 0,
+  time: 0,
+  barks: 0,
+  wasted: 0,
+  pennedNormal: 0,
+  pennedRebel: 0,
+  best: null,
+  ducksStartled: 0,
+  shake: 0,
+  endTimer: 0,
+  hintT: 0,
+  hintShown: false,
+  lastPenAt: -99,
+};
+
+const dog = {
+  x: 0, y: 0, vx: 0, vy: 0,
+  angle: -Math.PI / 2,
+  barkT: 0,
+  barkCd: 0,
+  speed: 0,
+  dustT: 0,
+  wet: false,
+  anim: 0,
+  tail: 0,
+};
+
+let sheep = [];
+let ducks = [];
+let path = [];
+let penSpots = [];
+
+/* --- particelle: pool fisso, zero allocazioni nel loop ----------- */
+const particles = [];
+for (let i = 0; i < CONFIG.feel.maxParticles; i++) {
+  particles.push({ alive: false, type: 'dust', x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 1, size: 1, rot: 0, spin: 0, color: '#fff' });
+}
+
+function spawnParticle(type, x, y, vx, vy, life, size, color, spin) {
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+    if (!p.alive) {
+      p.alive = true;
+      p.type = type;
+      p.x = x; p.y = y;
+      p.vx = vx; p.vy = vy;
+      p.life = life; p.max = life;
+      p.size = size || 3;
+      p.color = color || '#fff';
+      p.rot = rand(0, TAU);
+      p.spin = spin || rand(-4, 4);
+      return;
+    }
+  }
+}
+
+function clearParticles() {
+  for (const p of particles) p.alive = false;
+}
+
+/* --- factory ----------------------------------------------------- */
+function makeSheep(x, y, rebel) {
+  const P = CONFIG.sheep, R = CONFIG.rebel;
+  const s = {
+    x, y, vx: 0, vy: 0,
+    angle: rand(0, TAU),
+    r: P.radius,
+    rebel: !!rebel,
+    state: 'wander',
+    panic: 0,
+    wetT: 0,
+    wet: false,
+    wanderA: rand(0, TAU),
+    wanderSp: rand(0.7, 1.5),
+    bleatT: rand(1.5, 7),
+    decisionT: rand(0.6, 2.2),
+    grazeT: 0,
+    dartT: 0,
+    dartA: 0,
+    penned: false,
+    spot: null,
+    bounce: 0,
+    bob: rand(0, TAU),
+    seed: Math.random(),
+    // parametri individuali (le ribelli variano di partita in partita)
+    p: {
+      coh: P.cohesion,
+      ali: P.alignment,
+      sep: P.separation,
+      wander: P.wander,
+      speed: 1,
+      grazeBias: 0,
+    },
+  };
+
+  if (rebel) {
+    const v = () => rand(0.8, 1.2);
+    s.p.coh = R.cohesion * v();
+    s.p.ali = R.alignment * v();
+    s.p.sep = P.separation * R.separation * v();
+    s.p.wander = P.wander * R.wander * v();
+    s.p.speed = R.speedMult * rand(0.95, 1.08);
+    s.p.grazeBias = rand(0, 1); // 0 = scattante, 1 = brucatrice
+  }
+  return s;
+}
+
+function makeDuck() {
+  const x = rand(W * 0.12, W * 0.88);
+  return {
+    x,
+    y: rand(riverTopAt(x) + 20, riverBottomAt(x) - 20),
+    dir: Math.random() < 0.5 ? -1 : 1,
+    speed: rand(0.7, 1.3) * CONFIG.ducks.speed,
+    depth: rand(0.15, 0.85),
+    ph: rand(0, TAU),
+    state: 'calm',
+    timer: 0,
+    flap: 0,
+    wakeT: 0,
+    seed: rand(0, 10),
+  };
+}
+
+/* --- posizioni ordinate nel recinto ------------------------------ */
+function buildPenSpots(n) {
+  const p = view.pen;
+  penSpots = [];
+  const cols = Math.ceil(n / 2);
+  const rows = 2;
+  const padX = Math.max(26, p.w * 0.12);
+  const padTop = Math.max(24, p.h * 0.26);
+  const usableW = p.w - padX * 2;
+  const usableH = p.h - padTop - 22;
+  for (let i = 0; i < n; i++) {
+    const c = i % cols;
+    const r = Math.floor(i / cols);
+    penSpots.push({
+      x: p.x + padX + (cols > 1 ? (usableW * c) / (cols - 1) : usableW / 2),
+      y: p.y + padTop + (rows > 1 ? (usableH * r) / (rows - 1) : usableH * 0.5),
+    });
+  }
+}
+
+/* --- nuova partita ---------------------------------------------- */
+function newLevel() {
+  path.length = 0;
+  clearParticles();
+  clearToasts();
+
+  game.time = 0;
+  game.barks = 0;
+  game.wasted = 0;
+  game.pennedNormal = 0;
+  game.pennedRebel = 0;
+  game.ducksStartled = 0;
+  game.shake = 0;
+  game.endTimer = 0;
+  game.hintT = 0;
+  game.lastPenAt = -99;
+
+  // cane in basso al centro
+  dog.x = W * 0.5;
+  dog.y = Math.min(H - 46, H * 0.9);
+  dog.vx = dog.vy = 0;
+  dog.angle = -Math.PI / 2;
+  dog.barkT = 0;
+  dog.barkCd = 0;
+  dog.dustT = 0;
+  dog.wet = false;
+
+  // gregge: cluster sotto il fiume
+  const n = CONFIG.sheep.count;
+  const rebels = randInt(CONFIG.rebel.minCount, CONFIG.rebel.maxCount);
+  const idx = [];
+  for (let i = 0; i < n; i++) idx.push(i);
+  // shuffle
+  for (let i = idx.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [idx[i], idx[j]] = [idx[j], idx[i]];
+  }
+  const rebelSet = new Set(idx.slice(0, rebels));
+
+  sheep = [];
+  const cx = W * 0.5;
+  const cy = clamp(H * 0.795, view.river.y + view.river.half + 70, H - 60);
+  for (let i = 0; i < n; i++) {
+    const a = rand(0, TAU);
+    const r = rand(16, Math.min(W * 0.3, 95));
+    let x = clamp(cx + Math.cos(a) * r, 26, W - 26);
+    let y = clamp(cy + Math.sin(a) * r * 0.75, view.river.y + view.river.half + 40, H - 34);
+    sheep.push(makeSheep(x, y, rebelSet.has(i)));
+  }
+
+  // anatre
+  ducks = [];
+  for (let i = 0; i < CONFIG.ducks.count; i++) ducks.push(makeDuck());
+
+  buildPenSpots(n);
+
+  // piccola attesa prima di far comparire lo stato "playing"
+  game.state = 'playing';
+  game.hintT = 6;
+  updateHud(true);
+}
+
+/* --- HUD --------------------------------------------------------- */
+const el = {
+  hudTime: document.getElementById('hudTime'),
+  hudCount: document.getElementById('hudCount'),
+  hudBest: document.getElementById('hudBest'),
+  pillTime: document.getElementById('pillTime'),
+  pillCount: document.getElementById('pillCount'),
+  chip: document.getElementById('barkChip'),
+  toasts: document.getElementById('toasts'),
+  hint: document.getElementById('hint'),
+};
+
+function updateHud(force) {
+  const penned = game.pennedNormal + game.pennedRebel;
+  const total = sheep.length || CONFIG.sheep.count;
+  el.hudTime.textContent = formatTime(game.time);
+  el.hudCount.textContent = penned + '/' + total;
+  el.hudBest.textContent = game.best ? formatTime(game.best) : '--';
+
+  if (force) {
+    el.hudBest.parentElement.classList.remove('hidden');
+  }
+}
+
+function pulsePill(node) {
+  node.classList.remove('pulse');
+  void node.offsetWidth;
+  node.classList.add('pulse');
+}
+
+function toast(text, kind) {
+  const d = document.createElement('div');
+  d.className = 'toast' + (kind ? ' ' + kind : '');
+  d.textContent = text;
+  el.toasts.appendChild(d);
+  setTimeout(() => { if (d.parentNode) d.parentNode.removeChild(d); }, 2300);
+  while (el.toasts.children.length > 3) el.toasts.removeChild(el.toasts.firstChild);
+}
+
+function clearToasts() {
+  el.toasts.innerHTML = '';
+}
+
+/* ------------------------------------------------------------------
+   7. UPDATE
+------------------------------------------------------------------ */
+
+/* --- percorso disegnato ------------------------------------------ */
+function addPathPoint(x, y) {
+  const last = path[path.length - 1];
+  if (last) {
+    const d = dist(last.x, last.y, x, y);
+    if (d < CONFIG.dog.minPointDist) return;
+  }
+  path.push({ x, y });
+  if (path.length > 170) path.shift();
+}
+
+function getPathTarget() {
+  if (path.length === 0) return null;
+  if (path.length === 1) return path[0];
+
+  let remaining = CONFIG.dog.lookahead;
+  for (let i = 0; i < path.length - 1; i++) {
+    const a = path[i], b = path[i + 1];
+    const d = dist(a.x, a.y, b.x, b.y);
+    if (d >= remaining) {
+      const t = remaining / d;
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+    }
+    remaining -= d;
+  }
+  const last = path[path.length - 1];
+  return { x: last.x, y: last.y };
+}
+
+/* --- cane -------------------------------------------------------- */
+function dogSpeedMult() {
+  if (isWaterBand(dog.x, dog.y, 0)) {
+    if (inBridge(dog.x)) return 1;
+    if (inFord(dog.x)) return CONFIG.dog.fordSlow;
+    return CONFIG.dog.waterSlow;
+  }
+  return 1;
+}
+
+function updateDog(dt) {
+  dog.barkT = Math.max(0, dog.barkT - dt);
+  dog.barkCd = Math.max(0, dog.barkCd - dt);
+
+  // consuma il percorso dietro al cane
+  while (path.length > 1 && dist(path[0].x, path[0].y, dog.x, dog.y) < CONFIG.dog.pruneRadius) {
+    path.shift();
+  }
+  if (path.length === 1 && dist(path[0].x, path[0].y, dog.x, dog.y) < 7) path.length = 0;
+
+  const target = getPathTarget();
+  let desX = 0, desY = 0;
+
+  if (target) {
+    const dx = target.x - dog.x;
+    const dy = target.y - dog.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 0.6) {
+      const lastPoint = path.length <= 1;
+      const slow = lastPoint ? clamp(d / 22, 0.15, 1) : 1;
+      const spd = CONFIG.dog.speed * slow * dogSpeedMult() * (dog.wet ? 0.9 : 1);
+      desX = (dx / d) * spd;
+      desY = (dy / d) * spd;
+    }
+  }
+
+  const k = 1 - Math.exp(-CONFIG.dog.steer * dt);
+  dog.vx = lerp(dog.vx, desX, k);
+  dog.vy = lerp(dog.vy, desY, k);
+
+  dog.x += dog.vx * dt;
+  dog.y += dog.vy * dt;
+
+  // limiti del campo
+  dog.x = clamp(dog.x, 16, W - 16);
+  dog.y = clamp(dog.y, view.fieldTop + 14, H - 14);
+
+  dog.speed = Math.hypot(dog.vx, dog.vy);
+
+  if (dog.speed > 22) {
+    const targetAngle = Math.atan2(dog.vy, dog.vx);
+    dog.angle = angleLerp(dog.angle, targetAngle, 1 - Math.exp(-CONFIG.dog.turnSmooth * dt));
+  }
+  dog.anim += dt * (2 + dog.speed * 0.03);
+  dog.tail += dt * (5 + dog.speed * 0.02);
+
+  // acqua
+  const wetNow = isWaterBand(dog.x, dog.y, 0) && !inBridge(dog.x);
+  if (wetNow && !dog.wet) {
+    for (let i = 0; i < 7; i++) {
+      spawnParticle('splash', dog.x + rand(-6, 6), dog.y, rand(-60, 60), rand(-140, -50), rand(0.35, 0.6), rand(2, 4), '#dff2ff');
+    }
+    Sound.splash();
+  }
+  dog.wet = wetNow;
+
+  // polvere quando corre
+  if (dog.speed > 150 && !dog.wet) {
+    dog.dustT -= dt;
+    if (dog.dustT <= 0) {
+      dog.dustT = CONFIG.dog.dustRate;
+      const bx = dog.x - Math.cos(dog.angle) * 10;
+      const by = dog.y - Math.sin(dog.angle) * 10;
+      spawnParticle('dust', bx + rand(-3, 3), by + rand(-3, 3), rand(-24, 24), rand(-16, 6), rand(0.3, 0.55), rand(2.5, 5), '#e8dfc8');
+    }
+  }
+}
+
+/* --- abbaio ------------------------------------------------------ */
+function bark() {
+  if (game.state !== 'playing') return;
+  if (dog.barkCd > 0) return;
+
+  const C = CONFIG.bark;
+  dog.barkCd = C.cooldown;
+  dog.barkT = C.duration;
+  game.barks++;
+
+  let hit = 0;
+
+  // pecore
+  for (const s of sheep) {
+    if (s.penned) continue;
+    const d = Math.max(1, dist(s.x, s.y, dog.x, dog.y));
+    if (d > C.radius) continue;
+    const t = 1 - d / C.radius;
+    const mult = s.rebel ? CONFIG.rebel.barkMult : 1;
+    const nx = (s.x - dog.x) / d;
+    const ny = (s.y - dog.y) / d;
+
+    s.vx += nx * C.force * 0.12 * t * mult;
+    s.vy += ny * C.force * 0.12 * t * mult;
+    s.panic = Math.min(1, s.panic + 0.55 * t * mult);
+    if (s.rebel) { s.grazeT = 0; s.dartT = 0; }
+    s.state = 'panic';
+    hit++;
+    if (Math.random() < 0.25) Sound.bleat(s.rebel ? 1.2 : rand(0.85, 1.15));
+  }
+
+  if (hit === 0) game.wasted++;
+
+  // anatre
+  for (const dk of ducks) {
+    const d = dist(dk.x, dk.y, dog.x, dog.y);
+    if (d < C.duckRadius) startleDuck(dk, d);
+  }
+
+  // anello visivo + polvere
+  for (let i = 0; i < 6; i++) {
+    const a = rand(0, TAU);
+    spawnParticle('dust', dog.x + Math.cos(a) * 12, dog.y + Math.sin(a) * 8, Math.cos(a) * rand(40, 90), Math.sin(a) * rand(20, 50) - 30, rand(0.3, 0.5), rand(2, 4), '#f6efdc');
+  }
+
+  Sound.bark();
+  el.chip.classList.remove('punch');
+  void el.chip.offsetWidth;
+  el.chip.classList.add('punch');
+}
+
+/* --- pecore ------------------------------------------------------ */
+function updateSheep(dt) {
+  const P = CONFIG.sheep;
+  const penB = view.pen.bottom;
+  const pen = view.pen;
+
+  for (let i = 0; i < sheep.length; i++) {
+    const s = sheep[i];
+
+    if (s.penned) {
+      s.bounce = Math.max(0, s.bounce - dt * 1.7);
+      s.angle = smoothing(s.angle, Math.PI / 2, 4, dt);
+      if (s.spot) {
+        const k = 1 - Math.exp(-6 * dt);
+        s.x += (s.spot.x - s.x) * k;
+        s.y += (s.spot.y - s.y) * k;
+      }
+      continue;
     }
 
-    const pointer = {
-      down: false,
-      id: null,
-      startX: 0,
-      startY: 0,
-      lastX: 0,
-      lastY: 0,
-      downTime: 0,
-      moved: false
-    };
+    s.bleatT -= dt;
+    s.panic = Math.max(0, s.panic - dt * 0.55);
+    s.wetT = Math.max(0, s.wetT - dt);
+    s.wet = s.wetT > 0;
 
-    let drawing = false;
-
-    // ------------------------------------------------------------
-    // HELPERS
-    // ------------------------------------------------------------
-    function clamp(v, min, max) {
-      return Math.max(min, Math.min(max, v));
+    if (s.bleatT <= 0) {
+      s.bleatT = rand(3.5, 9);
+      if (Math.random() < 0.45 && game.state === 'playing') Sound.bleat(s.rebel ? 1.15 : rand(0.8, 1.2));
     }
 
-    function dist(x1, y1, x2, y2) {
-      return Math.hypot(x2 - x1, y2 - y1);
-    }
+    let fx = 0, fy = 0;
+    const rp = s.p;
 
-    function formatTime(t) {
-      return t.toFixed(1) + 's';
-    }
-
-    function getPenSpot(index) {
-      const cols = Math.max(2, Math.floor(pen.w / 62));
-      const col = index % cols;
-      const row = Math.floor(index / cols);
-
-      const spacingX = (pen.w - 56) / Math.max(1, cols - 1);
-
-      return {
-        x: pen.x + 28 + col * spacingX,
-        y: pen.y + 34 + row * 34
-      };
-    }
-
-    function initField() {
-      time = 0;
-      pennedCount = 0;
-      path = [];
-
-      dog.x = viewW / 2;
-      dog.y = viewH - 120;
-      dog.vx = 0;
-      dog.vy = 0;
-      dog.angle = -Math.PI / 2;
-      dog.bark = 0;
-
-      sheep = [];
-
-      for (let i = 0; i < SHEEP_COUNT; i++) {
-        sheep.push({
-          x: viewW * (0.24 + Math.random() * 0.52),
-          y: viewH * (0.38 + Math.random() * 0.24),
-          vx: 0,
-          vy: 0,
-          angle: -Math.PI / 2,
-          penned: false,
-          penTimer: 0,
-          spotX: 0,
-          spotY: 0,
-          wobble: Math.random() * 100
-        });
+    /* --- flocking --- */
+    let cohX = 0, cohY = 0, aliX = 0, aliY = 0, sepX = 0, sepY = 0, n = 0;
+    for (let j = 0; j < sheep.length; j++) {
+      if (j === i) continue;
+      const o = sheep[j];
+      const dx = o.x - s.x, dy = o.y - s.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > P.perception * P.perception || d2 < 0.01) continue;
+      const d = Math.sqrt(d2);
+      cohX += o.x; cohY += o.y;
+      aliX += o.vx; aliY += o.vy;
+      n++;
+      if (d < P.separationDist) {
+        const w = (P.separationDist - d) / P.separationDist;
+        sepX -= (dx / d) * w;
+        sepY -= (dy / d) * w;
       }
     }
 
-    function startGame() {
-      initField();
-      state = 'play';
-      overlay.style.display = 'none';
+    if (n > 0) {
+      cohX /= n; cohY /= n; aliX /= n; aliY /= n;
+
+      let dx = cohX - s.x, dy = cohY - s.y;
+      const dc = Math.hypot(dx, dy) || 1;
+      const cohW = P.cohesion * rp.coh * 95;
+      fx += (dx / dc) * cohW;
+      fy += (dy / dc) * cohW;
+
+      fx += (aliX - s.vx) * P.alignment * rp.ali * 0.55;
+      fy += (aliY - s.vy) * P.alignment * rp.ali * 0.55;
+    }
+    fx += sepX * rp.sep * 1.15;
+    fy += sepY * rp.sep * 1.15;
+
+    /* --- fuga dal cane --- */
+    const ddx = s.x - dog.x, ddy = s.y - dog.y;
+    const dd = Math.hypot(ddx, ddy) || 1;
+    const fleeR = P.fleeRadius + (dog.barkT > 0 ? 30 : 0);
+    if (dd < fleeR) {
+      const t = 1 - dd / fleeR;
+      const power = P.fleeForce * (0.35 + t * t);
+      fx += (ddx / dd) * power;
+      fy += (ddy / dd) * power;
+      s.panic = Math.min(1, s.panic + dt * (0.55 + t * 1.1));
     }
 
-    function endGame() {
-      state = 'end';
+    /* --- wander --- */
+    s.wanderA += dt * rp.speed * 0.9 * (s.rebel ? 1.5 : 1);
+    const wAmp = rp.wander * (s.rebel ? 1 : 0.55);
+    fx += Math.cos(s.wanderA) * wAmp;
+    fy += Math.sin(s.wanderA * 1.31 + s.seed * 6) * wAmp;
 
-      if (best === 0 || time < best) {
-        best = time;
-        try {
-          localStorage.setItem('bc_herding_best', String(best));
-        } catch (err) {}
-      }
-
-      ovTitle.textContent = 'GREGGE RADUNATO!';
-      ovBody.innerHTML = `
-        Tutte le pecore sono nel recinto.<br><br>
-        Tempo: <b>${formatTime(time)}</b><br>
-        Migliore: <b>${formatTime(best)}</b><br><br>
-        <span class="small">Prossimo step: grafica Border Collie vera, versi, ostacoli e livelli.</span>
-      `;
-      ovBtn.textContent = 'RIPROVA ↻';
-      overlay.style.display = 'flex';
-    }
-
-    ovBtn.addEventListener('click', () => {
-      startGame();
-    });
-
-    restartBtn.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-    });
-
-    restartBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      startGame();
-    });
-
-    // ------------------------------------------------------------
-    // INPUT DRAW-TO-MOVE
-    // ------------------------------------------------------------
-    function addPathPoint(x, y) {
-      if (path.length === 0) {
-        path.push({ x: dog.x, y: dog.y });
-      }
-
-      const last = path[path.length - 1];
-      const d = dist(x, y, last.x, last.y);
-
-      if (d < DRAW_MIN_POINT_DIST) return false;
-      if (path.length > 420) return false;
-
-      path.push({
-        x: clamp(x, 12, viewW - 12),
-        y: clamp(y, 12, viewH - 12)
-      });
-
-      return true;
-    }
-
-    function pDown(x, y, id) {
-      if (state !== 'play') return;
-
-      pointer.down = true;
-      pointer.id = id;
-      pointer.startX = x;
-      pointer.startY = y;
-      pointer.lastX = x;
-      pointer.lastY = y;
-      pointer.downTime = performance.now();
-      pointer.moved = false;
-      drawing = false;
-      path = [];
-    }
-
-    function pMove(x, y) {
-      if (!pointer.down) return;
-
-      const dStart = dist(x, y, pointer.startX, pointer.startY);
-
-      if (!drawing) {
-        if (dStart > 12) {
-          drawing = true;
-          pointer.moved = true;
-          path = [{ x: dog.x, y: dog.y }];
-          addPathPoint(x, y);
-          pointer.lastX = x;
-          pointer.lastY = y;
+    /* --- stati ribelli --- */
+    if (s.rebel) {
+      s.decisionT -= dt;
+      if (s.grazeT > 0) {
+        s.grazeT -= dt;
+        // "sto brucando, fatti tuoi": ignora quasi tutto
+        const damp = dd > 90 ? 0.16 : 1;
+        fx *= damp; fy *= damp;
+        s.state = 'stubborn';
+      } else if (s.dartT > 0) {
+        s.dartT -= dt;
+        fx += Math.cos(s.dartA) * CONFIG.rebel.dartSpeed * 3.4;
+        fy += Math.sin(s.dartA) * CONFIG.rebel.dartSpeed * 3.4;
+        s.state = 'flee';
+      } else if (s.decisionT <= 0) {
+        s.decisionT = rand(1.1, 3.0);
+        const r = Math.random();
+        const dogFar = dd > 150;
+        if (r < 0.18 + s.p.grazeBias * 0.22 && dogFar) {
+          s.grazeT = rand(CONFIG.rebel.grazeMin, CONFIG.rebel.grazeMax);
+        } else if (r < 0.55) {
+          s.dartT = rand(0.25, 0.6);
+          s.dartA = rand(0, TAU);
         }
-        return;
-      }
-
-      if (addPathPoint(x, y)) {
-        pointer.lastX = x;
-        pointer.lastY = y;
       }
     }
 
-    function pUp(x, y) {
-      if (!pointer.down) return;
+    /* --- acqua: evita la riva, oppure sguazza --- */
+    const shallowFord = isWaterBand(s.x, s.y, 0) && inFord(s.x);
+    const inWater = isWaterBand(s.x, s.y, 0) && !inBridge(s.x) && !inFord(s.x);
 
-      pointer.down = false;
-
-      const duration = performance.now() - pointer.downTime;
-
-      if (!drawing && duration < 250) {
-        bark();
+    if (inWater) {
+      // pecora bagnata: torna sulla riva da cui è entrata (non attraversa a nuoto)
+      s.wetT = Math.max(s.wetT, 1.4);
+      s.panic = Math.min(1, s.panic + dt * 0.6);
+      if (!s.waterSide) s.waterSide = s.y < view.river.y ? -1 : 1;
+      fy += s.waterSide * P.waterEscape;
+      s.vx *= 1 - Math.min(0.9, dt * 2.4);
+      s.state = 'panic';
+      if (Math.random() < dt * 7) {
+        spawnParticle('splash', s.x + rand(-8, 8), s.y - 4, rand(-30, 30), rand(-70, -30), 0.5, 2.2, '#dff3fb');
       }
-
-      drawing = false;
+    } else {
+      if (!isWaterBand(s.x, s.y, 30)) s.waterSide = 0;
+      // antiveggenza: due campioni lungo la direzione di movimento
+      if (!isCrossing(s.x)) {
+        let threat = 0;
+        for (let k = 1; k <= 2; k++) {
+          const ax = s.x + s.vx * 0.22 * k;
+          const ay = s.y + s.vy * 0.22 * k;
+          if (isWaterBand(ax, ay, 6) && !isCrossing(ax) && !inFord(ax)) {
+            threat = Math.max(threat, k === 1 ? 1 : 0.72);
+          }
+        }
+        if (threat > 0) {
+          const side = s.y < view.river.y ? -1 : 1;
+          fy += side * P.waterAvoid * threat;
+          const cx = nearestCrossingX(s.x);
+          fx += clamp((cx - s.x) * 3.0, -P.bankFunnel, P.bankFunnel) * threat;
+        }
+      }
+      // guado: acqua bassa, si passa ma si resta bagnati
+      if (shallowFord) { s.wetT = Math.max(s.wetT, 0.35); s.state = 'flee'; }
     }
 
-    function bark() {
-      dog.bark = BARK_TIME;
-
-      if (navigator.vibrate) {
-        try {
-          navigator.vibrate(18);
-        } catch (err) {}
+    /* --- richiamo del recinto --- */
+    if (s.y > penB - 10 && s.y < penB + P.penRange && Math.abs(s.x - pen.gateX) < pen.w * 0.92) {
+      const t = 1 - clamp((s.y - penB) / P.penRange, 0, 1);
+      const dogBelow = dog.y > s.y - 6;
+      if (dogBelow && !s.wet) {
+        fx += (pen.gateX - s.x) * P.penPull * 2.4 * t;
+        fy -= P.penPull * 46 * t;
       }
     }
 
-    canvas.addEventListener('pointerdown', (e) => {
+    /* --- integrazione --- */
+    const grazing = s.state === 'stubborn';
+    const maxSpd = (s.panic > 0.55 ? P.panicSpeed : P.maxSpeed) * rp.speed * (s.wet ? P.waterSlow : 1) * (grazing ? 0.35 : 1);
+
+    s.vx += fx * dt;
+    s.vy += fy * dt;
+
+    // attrito
+    const drag = Math.exp(-P.friction * dt);
+    s.vx *= drag;
+    s.vy *= drag;
+
+    const sp = Math.hypot(s.vx, s.vy);
+    if (sp > maxSpd) {
+      s.vx = (s.vx / sp) * maxSpd;
+      s.vy = (s.vy / sp) * maxSpd;
+    }
+
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+
+    // limiti campo
+    const m = 14;
+    if (s.x < m) { s.x = m; s.vx = Math.abs(s.vx) * 0.3; }
+    if (s.x > W - m) { s.x = W - m; s.vx = -Math.abs(s.vx) * 0.3; }
+    if (s.y < view.fieldTop + 6) { s.y = view.fieldTop + 6; s.vy = Math.abs(s.vy) * 0.3; }
+    if (s.y > H - 10) { s.y = H - 10; s.vy = -Math.abs(s.vy) * 0.3; }
+
+    // collisione con la staccionata
+    resolvePenCollision(s);
+
+    // ingresso
+    if (!s.penned && Math.abs(s.x - pen.gateX) < pen.gateW * 0.5 - 3 && s.y < penB - 12 && s.y > pen.y - 10) {
+      enterPen(s);
+    }
+
+    // stato (per l'animazione)
+    if (s.state !== 'stubborn' || s.grazeT <= 0) {
+      if (s.panic > 0.6) s.state = 'panic';
+      else if (dd < P.fleeRadius) s.state = 'flee';
+      else if (sp < 12) s.state = 'graze';
+      else s.state = 'wander';
+    }
+
+    if (sp > 26) {
+      s.angle = angleLerp(s.angle, Math.atan2(s.vy, s.vx), 1 - Math.exp(-7 * dt));
+    }
+
+    // gocciolamento quando è bagnata
+    if (s.wet && Math.random() < dt * 6) {
+      spawnParticle('drop', s.x + rand(-5, 5), s.y - 4, rand(-15, 15), rand(-20, 10), rand(0.3, 0.55), rand(1.5, 2.6), '#bfe6f7');
+    }
+
+    // saltello quando è appena entrata
+    s.bob += dt * (2.2 + sp * 0.045);
+  }
+}
+
+function resolvePenCollision(s) {
+  const p = view.pen;
+  // corridoio del cancello: sempre passabile
+  if (Math.abs(s.x - p.gateX) < p.gateW * 0.5 - 2) return;
+
+  const cx = clamp(s.x, p.x, p.x + p.w);
+  const cy = clamp(s.y, p.y, p.bottom);
+  let dx = s.x - cx, dy = s.y - cy;
+  let d = Math.hypot(dx, dy);
+
+  if (d >= s.r) return;
+  if (d < 0.001) return; // già dentro il recinto: la gestisce enterPen()
+
+  const nx = dx / d, ny = dy / d;
+  s.x = cx + nx * s.r;
+  s.y = cy + ny * s.r;
+
+  const vn = s.vx * nx + s.vy * ny;
+  if (vn < 0) {
+    s.vx -= nx * vn * 1.7;
+    s.vy -= ny * vn * 1.7;
+  }
+}
+
+function enterPen(s) {
+  if (s.penned) return;
+  s.penned = true;
+  s.bounce = 1;
+  s.panic = 0;
+  s.state = 'graze';
+
+  // posto libero più vicino
+  let best = null, bestD = Infinity;
+  for (const sp of penSpots) {
+    if (sp.taken) continue;
+    const d = dist2(sp.x, sp.y, s.x, s.y);
+    if (d < bestD) { bestD = d; best = sp; }
+  }
+  if (best) { best.taken = true; s.spot = best; }
+  else s.spot = { x: view.pen.x + view.pen.w / 2, y: view.pen.y + view.pen.h / 2 };
+
+  if (s.rebel) game.pennedRebel++;
+  else game.pennedNormal++;
+
+  // feedback
+  for (let i = 0; i < 12; i++) {
+    const a = rand(0, TAU);
+    spawnParticle('spark', s.x + Math.cos(a) * 6, s.y - 12 + Math.sin(a) * 6,
+      Math.cos(a) * rand(30, 90), Math.sin(a) * rand(-110, -40), rand(0.5, 0.9), rand(2, 3.6),
+      s.rebel ? '#ff7aa2' : '#ffe066');
+  }
+  for (let i = 0; i < 5; i++) {
+    spawnParticle('dust', s.x + rand(-8, 8), s.y, rand(-30, 30), rand(-40, -10), rand(0.35, 0.6), rand(2, 4), '#f3e6bf');
+  }
+
+  game.shake = Math.max(game.shake, CONFIG.feel.shakeOnPen);
+
+  if (s.rebel) {
+    toast('Pecora matta recuperata! 🎀', 'rebel');
+    Sound.sparkle();
+    for (let i = 0; i < 8; i++) {
+      spawnParticle('spark', s.x + rand(-20, 20), s.y - 20 + rand(-14, 14),
+        rand(-60, 60), rand(-130, -40), rand(0.6, 1.1), rand(2, 4), '#ffc2d6');
+    }
+  } else {
+    toast('Pecora nel recinto! 🐑');
+    Sound.bleat(1.1);
+  }
+
+  pulsePill(el.pillCount);
+  updateHud();
+  game.lastPenAt = game.clock;
+
+  // tutte dentro?
+  if (game.pennedNormal + game.pennedRebel >= sheep.length) {
+    setTimeout(win, 320);
+  }
+}
+
+/* --- anatre ------------------------------------------------------ */
+function startleDuck(dk, d) {
+  const wasCalm = dk.state !== 'startled';
+  dk.state = 'startled';
+  dk.timer = Math.max(dk.timer, rand(CONFIG.bark.duckStartleMin, CONFIG.bark.duckStartleMax));
+  dk.dir = dk.x < dog.x ? -1 : 1;
+
+  if (wasCalm) {
+    game.ducksStartled++;
+    Sound.quack();
+    for (let i = 0; i < 6; i++) {
+      spawnParticle('splash', dk.x + rand(-6, 6), dk.y, rand(-70, 70), rand(-120, -40), rand(0.3, 0.55), rand(1.8, 3.4), '#e8f8ff');
+    }
+  }
+
+  // nervosismo contagioso: le pecore vicine si innervosiscono
+  for (const s of sheep) {
+    if (s.penned) continue;
+    const dd = dist(s.x, s.y, dk.x, dk.y);
+    if (dd < 135) {
+      s.panic = Math.min(1, s.panic + 0.35);
+      const a = Math.atan2(s.y - dk.y, s.x - dk.x) + rand(-0.5, 0.5);
+      s.vx += Math.cos(a) * 55;
+      s.vy += Math.sin(a) * 55;
+    }
+  }
+}
+
+function updateDucks(dt) {
+  const C = CONFIG.ducks;
+  for (const dk of ducks) {
+    if (dk.state === 'startled') {
+      dk.timer -= dt;
+      if (dk.timer <= 0) dk.state = 'calm';
+    }
+
+    const boost = dk.state === 'startled' ? C.startleBoost : 1;
+    dk.x += dk.dir * dk.speed * boost * dt;
+
+    if (dk.x < 26) { dk.x = 26; dk.dir = 1; }
+    if (dk.x > W - 26) { dk.x = W - 26; dk.dir = -1; }
+
+    // resta dentro il fiume
+    const top = riverTopAt(dk.x) + 17;
+    const bot = riverBottomAt(dk.x) - 17;
+    const wantY = lerp(top, bot, dk.depth) + Math.sin(game.clock * 1.6 + dk.ph) * C.bobAmp * (dk.state === 'startled' ? 1.8 : 1);
+    dk.y = lerp(dk.y, wantY, 1 - Math.exp(-5 * dt));
+
+    // scia
+    dk.wakeT -= dt;
+    if (dk.wakeT <= 0 && dk.state !== 'startled') {
+      dk.wakeT = C.wakeRate;
+      spawnParticle('wake', dk.x - dk.dir * 8, dk.y + 3, -dk.dir * rand(4, 14), rand(-4, 4), rand(0.5, 0.9), rand(3, 6), 'rgba(255,255,255,0.5)');
+    }
+    if (dk.state === 'startled' && Math.random() < dt * 14) {
+      spawnParticle('splash', dk.x + rand(-8, 8), dk.y + 2, rand(-50, 50), rand(-90, -30), rand(0.25, 0.45), rand(1.5, 3), '#eaf9ff');
+    }
+  }
+}
+
+/* --- particelle -------------------------------------------------- */
+function updateParticles(dt) {
+  for (const p of particles) {
+    if (!p.alive) continue;
+    p.life -= dt;
+    if (p.life <= 0) { p.alive = false; continue; }
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.rot += p.spin * dt;
+
+    if (p.type === 'dust') { p.vx *= 1 - 2.6 * dt; p.vy *= 1 - 2.6 * dt; p.vy -= 12 * dt; }
+    else if (p.type === 'spark') { p.vy += 220 * dt; p.vx *= 1 - 1.2 * dt; }
+    else if (p.type === 'splash') { p.vy += 520 * dt; }
+    else if (p.type === 'drop') { p.vy += 420 * dt; }
+    else if (p.type === 'wake') { p.vx *= 1 - 1.5 * dt; }
+    else if (p.type === 'confetti') { p.vy += 260 * dt; p.vx *= 1 - 0.8 * dt; }
+  }
+}
+
+/* --- vittoria ---------------------------------------------------- */
+function checkWin() {
+  if (game.state !== 'playing') return;
+  if (game.pennedNormal + game.pennedRebel >= sheep.length) {
+    win();
+  }
+}
+
+function win() {
+  if (game.state !== 'playing') return;
+  game.state = 'won';
+
+  // ultimo tempo
+  const t = game.time;
+  const prevBest = game.best;
+  game.isRecord = !prevBest || t < prevBest - 0.05;
+  if (!prevBest || t < prevBest) {
+    game.best = t;
+    Store.set(BEST_KEY, String(t));
+  }
+
+  Sound.success();
+
+  // coriandoli
+  for (let i = 0; i < 40; i++) {
+    spawnParticle('confetti', rand(W * 0.15, W * 0.85), rand(-40, 60),
+      rand(-70, 70), rand(20, 120), rand(1.2, 2.2), rand(2.5, 5),
+      ['#ffd166', '#ef476f', '#06d6a0', '#118ab2', '#fff'][randInt(0, 4)], rand(-8, 8));
+  }
+
+  updateHud();
+  showEnd();
+}
+/* ------------------------------------------------------------------
+   8. DRAW
+------------------------------------------------------------------ */
+
+/* --- acqua animata ---------------------------------------------- */
+function drawWaterAnim() {
+  const v = view;
+  ctx.save();
+  traceRiver(ctx, 0);
+  ctx.clip();
+
+  // linee di corrente
+  ctx.lineCap = 'round';
+  for (const l of waterLines) {
+    const yBase = v.river.y + l.off * v.river.half;
+    ctx.strokeStyle = 'rgba(255,255,255,' + l.a + ')';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let x = -8; x <= W + 8; x += 16) {
+      const y = yBase + Math.sin(x * 0.042 + game.clock * l.sp * 1.6 + l.ph) * 4;
+      if (x === -8) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // increspature
+  for (const r of ripples) {
+    const x = ((r.x + game.clock * r.sp) % (W + 70)) - 35;
+    const y = v.river.y + r.off * v.river.half * 0.85;
+    const pulse = 0.55 + 0.45 * Math.sin(game.clock * 2.2 + r.ph);
+    ctx.strokeStyle = 'rgba(255,255,255,' + (r.a * pulse).toFixed(3) + ')';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(x, y, r.r * (0.55 + pulse * 0.55), r.r * 0.32, 0, 0, TAU);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* --- percorso disegnato ----------------------------------------- */
+function drawPath() {
+  if (path.length === 0) return;
+
+  if (path.length > 1) {
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.setLineDash([9, 9]);
+    ctx.lineDashOffset = -game.clock * 26;
+
+    ctx.beginPath();
+    ctx.moveTo(path[0].x, path[0].y);
+    for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+
+    ctx.strokeStyle = 'rgba(30,60,30,0.28)';
+    ctx.lineWidth = 6.5;
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+    ctx.lineWidth = 3.2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // puntino finale pulsante
+  const last = path[path.length - 1];
+  const pul = 0.7 + 0.3 * Math.sin(game.clock * 6);
+  ctx.fillStyle = 'rgba(255,255,255,' + (0.5 * pul) + ')';
+  ellipse(ctx, last.x, last.y, 9 * pul, 9 * pul, 0); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ellipse(ctx, last.x, last.y, 3.4, 3.4, 0); ctx.fill();
+}
+
+/* --- ponte: ringhiere davanti agli animali ----------------------- */
+function drawBridgeFront() {
+  const b = view.bridge;
+  for (const side of [-1, 1]) {
+    const x = b.x + side * (b.half - 3);
+
+    // ombra della ringhiera
+    ctx.strokeStyle = 'rgba(40,25,10,0.28)';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x + 2, b.top + 6); ctx.lineTo(x + 2, b.bottom - 4); ctx.stroke();
+
+    // corrimano
+    ctx.strokeStyle = '#8a5a2b';
+    ctx.lineWidth = 4.5;
+    ctx.beginPath(); ctx.moveTo(x, b.top + 2); ctx.lineTo(x, b.bottom - 2); ctx.stroke();
+    ctx.strokeStyle = '#d59a5c';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(x - 1, b.top + 2); ctx.lineTo(x - 1, b.bottom - 2); ctx.stroke();
+
+    // paletti
+    for (let y = b.top + 4; y <= b.bottom - 2; y += 17) {
+      ctx.fillStyle = 'rgba(40,25,10,0.25)';
+      rr(ctx, x - 2.5 + 1, y - 5 + 1.5, 5, 10, 2); ctx.fill();
+      ctx.fillStyle = '#b3773c';
+      rr(ctx, x - 2.5, y - 5, 5, 10, 2); ctx.fill();
+      ctx.fillStyle = '#e0aa71';
+      rr(ctx, x - 1.6, y - 4.2, 3.2, 2.6, 1); ctx.fill();
+    }
+  }
+}
+
+/* --- anatre ------------------------------------------------------ */
+function drawDuck(dk) {
+  const startled = dk.state === 'startled';
+  const bob = Math.sin(game.clock * 2.4 + dk.ph) * 1.4;
+  const sc = S * 0.95;
+
+  ctx.save();
+  ctx.translate(dk.x, dk.y + bob * 0.4);
+
+  // scia sull'acqua
+  const wake = ctx.createLinearGradient(-dk.dir * 10, 0, -dk.dir * 34, 0);
+  wake.addColorStop(0, 'rgba(255,255,255,0.30)');
+  wake.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.strokeStyle = wake;
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-dk.dir * 8, 2);
+  ctx.lineTo(-dk.dir * 30, 3);
+  ctx.stroke();
+
+  ctx.scale(dk.dir > 0 ? sc : -sc, sc);
+
+  // ombra sull'acqua
+  ctx.fillStyle = 'rgba(15,60,85,0.22)';
+  ellipse(ctx, 0, 4, 10, 4.2, 0); ctx.fill();
+
+  // corpo
+  ctx.fillStyle = '#ffd93b';
+  ellipse(ctx, -1, -2, 9.5, 6.4, 0); ctx.fill();
+  ctx.fillStyle = '#fff3c4';
+  ellipse(ctx, 1, -1, 6, 4.2, 0); ctx.fill();
+
+  // coda
+  ctx.fillStyle = '#f0b429';
+  ctx.beginPath();
+  ctx.moveTo(-8, -4); ctx.lineTo(-13, -6.5); ctx.lineTo(-11, -1.5); ctx.closePath();
+  ctx.fill();
+
+  // ala / ali spiegate se spaventata
+  if (startled) {
+    const flap = Math.sin(game.clock * 26 + dk.ph) * 0.5;
+    for (const s of [-1, 1]) {
+      ctx.save();
+      ctx.translate(-2, -4);
+      ctx.rotate(s * (0.9 + flap));
+      ctx.fillStyle = '#ffe066';
+      ellipse(ctx, 0, -6, 3.4, 8, 0); ctx.fill();
+      ctx.strokeStyle = '#e8b71c'; ctx.lineWidth = 1;
+      ellipse(ctx, 0, -6, 3.4, 8, 0); ctx.stroke();
+      ctx.restore();
+    }
+  } else {
+    ctx.fillStyle = 'rgba(232,183,28,0.9)';
+    ellipse(ctx, -2, -2.5, 5.4, 3.5, -0.2); ctx.fill();
+    ctx.strokeStyle = 'rgba(200,150,20,0.5)'; ctx.lineWidth = 1;
+    ellipse(ctx, -2, -2.5, 5.4, 3.5, -0.2); ctx.stroke();
+  }
+
+  // collo + testa
+  ctx.fillStyle = '#ffdc4f';
+  ellipse(ctx, 6.5, -6.5, 4.2, 4.4, 0); ctx.fill();
+  ctx.fillStyle = '#ffce1f';
+  ellipse(ctx, 7.5, -7.5, 3.4, 3.2, 0); ctx.fill();
+
+  // becco
+  ctx.fillStyle = '#ff8c1a';
+  ctx.beginPath();
+  ctx.moveTo(10, -7.4); ctx.lineTo(15.2, -6.2); ctx.lineTo(10, -4.6); ctx.closePath();
+  ctx.fill();
+
+  // occhio
+  ctx.fillStyle = '#2b2620';
+  ellipse(ctx, 8.2, -8.4, 1.15, 1.15, 0); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ellipse(ctx, 8.5, -8.8, 0.45, 0.45, 0); ctx.fill();
+
+  ctx.restore();
+
+  // "!" quando è offesa
+  if (startled) {
+    const a = clamp(dk.timer, 0, 1);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = '#ff5d73';
+    ctx.font = 'bold 15px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('!', dk.x, dk.y - 16);
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* --- pecora ------------------------------------------------------ */
+function drawSheep(s) {
+  const bounce = s.bounce || 0;
+  const lift = bounce * 7;
+  const scaleBase = S * (1 + bounce * 0.10);
+  const wob = Math.sin(s.bob) * (s.state === 'graze' ? 0.03 : 0.075);
+  const walking = s.state !== 'graze' && s.state !== 'stubborn';
+
+  // ombra
+  ctx.fillStyle = 'rgba(28,52,22,' + (0.20 - bounce * 0.05) + ')';
+  ellipse(ctx, s.x, s.y + 1, 14 * S * (1 - bounce * 0.15), 5.2 * S, 0); ctx.fill();
+
+  ctx.save();
+  ctx.translate(s.x, s.y - lift);
+  ctx.rotate(wob);
+  ctx.scale(scaleBase, scaleBase);
+
+  const wool = s.wet ? '#e8e3d6' : '#fdfaf1';
+  const woolShade = s.wet ? '#cfc9b9' : '#e9dfcb';
+  const skin = s.wet ? '#4a4447' : '#3c3a3f';
+
+  // zampe
+  ctx.strokeStyle = skin;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  const ph = s.bob * 2.2;
+  for (let i = 0; i < 4; i++) {
+    const lx = -5 + i * 3.4;
+    const swing = walking ? Math.sin(ph + i * 1.9) * 2.1 : Math.sin(ph + i) * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(lx, -7);
+    ctx.lineTo(lx + swing, -0.6);
+    ctx.stroke();
+  }
+
+  // coda corta
+  ctx.fillStyle = woolShade;
+  ellipse(ctx, -9.5, -13, 3.8, 3.2, 0.4); ctx.fill();
+
+  // lana
+  ctx.fillStyle = wool;
+  ellipse(ctx, 0, -14, 9.6, 8.4, 0); ctx.fill();
+  ellipse(ctx, -6.5, -12.5, 6.6, 6, 0); ctx.fill();
+  ellipse(ctx, 6.5, -12.5, 6.6, 6, 0); ctx.fill();
+  ellipse(ctx, -4, -18.5, 5.8, 5, 0); ctx.fill();
+  ellipse(ctx, 4, -18.5, 5.8, 5, 0); ctx.fill();
+
+  // ombra interna della lana
+  ctx.fillStyle = woolShade;
+  ctx.globalAlpha = 0.55;
+  ellipse(ctx, 0, -9.5, 8.2, 3.4, 0); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // testa (segue la direzione)
+  const hx = Math.cos(s.angle) * 7.4;
+  const hy = Math.sin(s.angle) * 3.2 - 13;
+
+  // orecchie
+  ctx.fillStyle = skin;
+  ellipse(ctx, hx - 5.2, hy - 0.6, 2.6, 1.7, -0.5); ctx.fill();
+  ellipse(ctx, hx + 5.2, hy - 0.6, 2.6, 1.7, 0.5); ctx.fill();
+
+  // testa
+  ctx.fillStyle = skin;
+  ellipse(ctx, hx, hy, 5.4, 5, 0); ctx.fill();
+  // musetto chiaro
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ellipse(ctx, hx + Math.cos(s.angle) * 2.4, hy + 1.4, 2.6, 1.9, 0); ctx.fill();
+  // occhi
+  ctx.fillStyle = '#fff';
+  ellipse(ctx, hx - 2, hy - 1.2, 1.15, 1.15, 0); ctx.fill();
+  ellipse(ctx, hx + 2, hy - 1.2, 1.15, 1.15, 0); ctx.fill();
+  ctx.fillStyle = '#171418';
+  ellipse(ctx, hx - 2, hy - 1.1, 0.6, 0.6, 0); ctx.fill();
+  ellipse(ctx, hx + 2, hy - 1.1, 0.6, 0.6, 0); ctx.fill();
+
+  // dettagli ribelle: bandana + ciuffo + macchia
+  if (s.rebel) {
+    ctx.fillStyle = '#ef476f';
+    ctx.beginPath();
+    ctx.moveTo(hx - 5.4, hy + 3.4);
+    ctx.lineTo(hx + 5.4, hy + 3.4);
+    ctx.lineTo(hx, hy + 8.6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    for (let i = -1; i <= 1; i++) {
+      ellipse(ctx, hx + i * 2.6, hy + 5.2, 0.7, 0.7, 0); ctx.fill();
+    }
+    // ciuffo
+    ctx.strokeStyle = '#3c3a3f';
+    ctx.lineWidth = 1.7;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(hx - 1, hy - 4.6);
+    ctx.quadraticCurveTo(hx + 0.5, hy - 8.5, hx + 3.4, hy - 7.6);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+
+  // indicatore "ribelle" sopra la testa
+  if (s.rebel && !s.penned) {
+    const t = game.clock * 3 + s.seed * 8;
+    const floatY = -34 * S + Math.sin(t) * 2.4;
+    ctx.save();
+    ctx.translate(s.x, s.y + floatY);
+    ctx.scale(S, S);
+    const isStubborn = s.state === 'stubborn';
+    ctx.fillStyle = isStubborn ? 'rgba(239,71,111,0.95)' : 'rgba(239,71,111,0.78)';
+    ellipse(ctx, 0, 0, 5.8, 5.8, 0); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 8.5px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(isStubborn ? 'zZ' : '!', 0, 0.5);
+    ctx.restore();
+  }
+
+  // (le goccioline sono gestite in updateSheep)
+}
+
+/* --- cane -------------------------------------------------------- */
+function drawDog() {
+  const spdN = clamp(dog.speed / CONFIG.dog.speed, 0, 1);
+  const ph = dog.anim;
+  const sc = S;
+
+  // ombra
+  ctx.fillStyle = 'rgba(25,45,20,0.22)';
+  ellipse(ctx, dog.x, dog.y + 2, 17 * S, 6.6 * S, 0); ctx.fill();
+
+  ctx.save();
+  ctx.translate(dog.x, dog.y);
+  ctx.rotate(dog.angle);
+  ctx.scale(sc * 1.15, sc * 1.15);
+
+  // zampe (dietro al corpo): bianche con zampa nera
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 4; i++) {
+    const front = i < 2;
+    const lx = front ? 8 : -8;
+    const side = i % 2 === 0 ? -1 : 1;
+    const swing = Math.sin(ph * 2 + i * 1.7) * 3.6 * spdN;
+    const ex = lx + swing;
+    const ey = side * (10 + spdN * 1.2);
+    ctx.strokeStyle = '#f7f5ef';
+    ctx.lineWidth = 3.9;
+    ctx.beginPath();
+    ctx.moveTo(lx, side * 5.4);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    ctx.fillStyle = '#2b2a30';
+    ctx.beginPath(); ctx.arc(ex, ey, 1.9, 0, TAU); ctx.fill();
+  }
+
+  // coda
+  const wag = Math.sin(dog.tail) * 0.55;
+  ctx.save();
+  ctx.translate(-14, 0);
+  ctx.rotate(wag);
+  ctx.strokeStyle = '#f7f5ef';
+  ctx.lineWidth = 4.6;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(-6, 1, -9.5, 3.5);
+  ctx.stroke();
+  ctx.strokeStyle = '#2b2a30';
+  ctx.lineWidth = 4.4;
+  ctx.beginPath();
+  ctx.moveTo(-7.6, 2.6);
+  ctx.lineTo(-9.8, 3.8);
+  ctx.stroke();
+  ctx.restore();
+
+  // corpo
+  ctx.fillStyle = '#fbf9f3';
+  ellipse(ctx, -1, 0, 15.5, 8.8, 0); ctx.fill();
+  ctx.strokeStyle = 'rgba(48,42,50,0.45)';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  // sella nera
+  ctx.fillStyle = '#2b2a30';
+  ellipse(ctx, -4, -0.5, 8.6, 7.4, 0.1); ctx.fill();
+  ellipse(ctx, 1.5, -5.5, 4.2, 3.2, 0.3); ctx.fill();
+  ellipse(ctx, -10, 4.5, 4.6, 3, -0.3); ctx.fill();
+
+  // petto bianco
+  ctx.fillStyle = '#ffffff';
+  ellipse(ctx, 9.5, 0, 5.6, 6.6, 0); ctx.fill();
+
+  // collare
+  ctx.strokeStyle = '#e04a5f';
+  ctx.lineWidth = 3.2;
+  ctx.beginPath();
+  ctx.moveTo(12.2, -5.4);
+  ctx.quadraticCurveTo(14.6, 0, 12.2, 5.4);
+  ctx.stroke();
+
+  // testa
+  ctx.fillStyle = '#2b2a30';
+  ellipse(ctx, 13.5, 0, 7.6, 6.6, 0); ctx.fill();
+  ctx.strokeStyle = 'rgba(48,42,50,0.45)';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  // orecchie
+  ctx.fillStyle = '#2b2a30';
+  ctx.beginPath();
+  ctx.moveTo(10.5, -5.4); ctx.quadraticCurveTo(7.5, -10, 10.5, -9.6); ctx.quadraticCurveTo(13.4, -9, 14.2, -5.6); ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(10.5, 5.4); ctx.quadraticCurveTo(7.5, 10, 10.5, 9.6); ctx.quadraticCurveTo(13.4, 9, 14.2, 5.6); ctx.closePath();
+  ctx.fill();
+  // interno orecchie
+  ctx.fillStyle = '#e8a0a8';
+  ctx.beginPath();
+  ctx.moveTo(10.9, -6.2); ctx.quadraticCurveTo(9, -8.6, 10.9, -8.4); ctx.quadraticCurveTo(12.4, -8.1, 12.8, -6.3); ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(10.9, 6.2); ctx.quadraticCurveTo(9, 8.6, 10.9, 8.4); ctx.quadraticCurveTo(12.4, 8.1, 12.8, 6.3); ctx.closePath();
+  ctx.fill();
+
+  // muso
+  const mouthOpen = dog.barkT > 0 ? clamp(dog.barkT / CONFIG.bark.duration, 0, 1) : 0;
+  ctx.fillStyle = '#ffffff';
+  ellipse(ctx, 18.4, 0, 4.6, 3.4, 0); ctx.fill();
+  ctx.fillStyle = '#2b2a30';
+  ellipse(ctx, 21.4, 0, 1.7, 1.5, 0); ctx.fill();
+
+  // bocca aperta quando abbaia
+  if (mouthOpen > 0) {
+    ctx.fillStyle = '#7d2b34';
+    ellipse(ctx, 19.6, 0, 3.2, 2.2 * mouthOpen + 0.6, 0); ctx.fill();
+    ctx.fillStyle = '#ff8fa0';
+    ellipse(ctx, 19, 0, 1.9, 1.1 * mouthOpen + 0.2, 0); ctx.fill();
+  }
+
+  // occhi
+  ctx.fillStyle = '#ffffff';
+  ellipse(ctx, 15.6, -3.6, 1.5, 1.5, 0); ctx.fill();
+  ellipse(ctx, 15.6, 3.6, 1.5, 1.5, 0); ctx.fill();
+  ctx.fillStyle = '#121014';
+  ellipse(ctx, 16.1, -3.6, 0.8, 0.8, 0); ctx.fill();
+  ellipse(ctx, 16.1, 3.6, 0.8, 0.8, 0); ctx.fill();
+
+  ctx.restore();
+
+  // anello dell'abbaio
+  if (dog.barkT > 0) {
+    const k = 1 - dog.barkT / CONFIG.bark.duration; // 0 -> 1
+    const rad = 26 + k * CONFIG.bark.radius;
+    const alpha = (1 - k) * 0.55;
+    ctx.save();
+    ctx.lineWidth = 3.2;
+    ctx.strokeStyle = 'rgba(255,255,255,' + alpha.toFixed(3) + ')';
+    ellipse(ctx, dog.x, dog.y, rad, rad * 0.72, 0); ctx.stroke();
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = 'rgba(255,230,150,' + (alpha * 0.9).toFixed(3) + ')';
+    ellipse(ctx, dog.x, dog.y, rad * 0.72, rad * 0.52, 0); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/* --- particelle -------------------------------------------------- */
+function drawParticles() {
+  for (const p of particles) {
+    if (!p.alive) continue;
+    const t = p.life / p.max;
+    if (p.type === 'dust') {
+      ctx.globalAlpha = t * 0.6;
+      ctx.fillStyle = p.color;
+      ellipse(ctx, p.x, p.y, p.size * (1.6 - t * 0.6), p.size * (1.6 - t * 0.6), 0);
+      ctx.fill();
+    } else if (p.type === 'spark') {
+      ctx.globalAlpha = t;
+      ctx.fillStyle = p.color;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      const s = p.size * (0.5 + t * 0.8);
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 2); ctx.lineTo(s * 0.7, 0); ctx.lineTo(0, s * 2); ctx.lineTo(-s * 0.7, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    } else if (p.type === 'splash' || p.type === 'drop') {
+      ctx.globalAlpha = t * 0.9;
+      ctx.fillStyle = p.color;
+      ellipse(ctx, p.x, p.y, p.size, p.size * 0.9, 0);
+      ctx.fill();
+    } else if (p.type === 'wake') {
+      ctx.globalAlpha = t * 0.7;
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 1.2;
+      ellipse(ctx, p.x, p.y, p.size * (1.8 - t), p.size * 0.5, 0);
+      ctx.stroke();
+    } else if (p.type === 'confetti') {
+      ctx.globalAlpha = Math.min(1, t * 2);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+      ctx.restore();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* --- entità ordinate per profondità ------------------------------ */
+const drawItems = [];
+for (let i = 0; i < 24; i++) drawItems.push({ y: 0, e: null, dog: false });
+
+function drawEntities() {
+  let n = 0;
+  for (const s of sheep) {
+    const it = drawItems[n++];
+    it.y = s.y; it.e = s; it.dog = false;
+  }
+  const it = drawItems[n++];
+  it.y = dog.y; it.e = dog; it.dog = true;
+
+  // insertion sort (n <= 9, zero allocazioni)
+  for (let i = 1; i < n; i++) {
+    const cur = drawItems[i];
+    let j = i - 1;
+    while (j >= 0 && drawItems[j].y > cur.y) { drawItems[j + 1] = drawItems[j]; j--; }
+    drawItems[j + 1] = cur;
+  }
+
+  for (let i = 0; i < n; i++) {
+    const d = drawItems[i];
+    if (d.dog) drawDog();
+    else drawSheep(d.e);
+  }
+}
+
+/* --- frame ------------------------------------------------------- */
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  ctx.save();
+  if (game.shake > 0.05) {
+    const s = game.shake;
+    ctx.translate(rand(-s, s), rand(-s, s));
+  }
+
+  ctx.drawImage(bgCanvas, 0, 0, W, H);
+
+  drawWaterAnim();
+  drawPath();
+
+  // anatre sotto agli animali che sono sulla riva
+  for (const dk of ducks) drawDuck(dk);
+
+  drawEntities();
+  drawBridgeFront();
+  drawParticles();
+
+  ctx.restore();
+}
+
+/* ------------------------------------------------------------------
+   9. LOOP / INPUT / UI
+------------------------------------------------------------------ */
+let lastFrame = performance.now();
+let hudAcc = 0;
+
+function frame(now) {
+  const raw = (now - lastFrame) / 1000;
+  lastFrame = now;
+  // dt clampato: niente salti dopo un tab in background
+  const dt = clamp(raw, 0.0005, 0.04);
+
+  update(dt);
+  draw();
+
+  hudAcc += raw;
+  if (hudAcc > 0.1) {
+    hudAcc = 0;
+    if (game.state === 'playing') updateHud();
+    updateBarkChip();
+  }
+
+  requestAnimationFrame(frame);
+}
+
+function update(dt) {
+  game.clock += dt;
+
+  if (game.state === 'playing') {
+    game.time += dt;
+    updateDog(dt);
+    updateSheep(dt);
+    updateDucks(dt);
+
+    if (game.hintT > 0) {
+      game.hintT -= dt;
+      if (!game.hintShown && game.hintT < 5.2) {
+        game.hintShown = true;
+        el.hint.classList.add('show');
+        setTimeout(() => el.hint.classList.remove('show'), 3600);
+      }
+    }
+  } else if (game.state === 'won') {
+    updateDucks(dt * 0.7);
+    updateSheep(dt);
+  } else {
+    // menu: scena viva ma tranquilla
+    updateDucks(dt * 0.8);
+  }
+
+  updateParticles(dt);
+
+  if (game.shake > 0) {
+    game.shake = Math.max(0, game.shake - CONFIG.feel.shakeDecay * dt);
+  }
+}
+
+function updateBarkChip() {
+  const p = 100 - (dog.barkCd / CONFIG.bark.cooldown) * 100;
+  el.chip.style.setProperty('--p', Math.round(p));
+  el.chip.classList.toggle('ready', dog.barkCd <= 0);
+}
+
+/* --- pointer: disegna percorso / tap = abbaio -------------------- */
+const input = {
+  active: false,
+  id: null,
+  sx: 0, sy: 0,
+  moved: 0,
+  t0: 0,
+  lastX: 0, lastY: 0,
+};
+
+function localPos(clientX, clientY) {
+  const r = cv.getBoundingClientRect();
+  return { x: clientX - r.left, y: clientY - r.top };
+}
+
+function onDown(x, y, id) {
+  if (game.state !== 'playing') return;
+  if (input.active) return;
+  input.active = true;
+  input.id = id;
+  input.sx = input.lastX = x;
+  input.sy = input.lastY = y;
+  input.moved = 0;
+  input.t0 = performance.now();
+  Sound.unlock();
+}
+
+function onMove(x, y, id) {
+  if (!input.active || id !== input.id) return;
+  const d = Math.hypot(x - input.sx, y - input.sy);
+  input.moved = Math.max(input.moved, d);
+
+  if (d > 6) {
+    // il percorso parte dal dito (e prosegue fluido)
+    addPathPoint(x, y);
+  }
+  input.lastX = x;
+  input.lastY = y;
+}
+
+function onUp(x, y, id) {
+  if (!input.active || id !== input.id) return;
+  input.active = false;
+  input.id = null;
+
+  const dt = performance.now() - input.t0;
+  const moved = Math.max(input.moved, Math.hypot(x - input.sx, y - input.sy));
+
+  // tap rapido = abbaio
+  if (dt < 280 && moved < 26) {
+    bark();
+  }
+}
+
+/* --- event binding ---------------------------------------------- */
+(function bindInput() {
+  const hasPointer = 'onpointerdown' in window;
+
+  if (hasPointer) {
+    cv.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
       e.preventDefault();
-      pDown(e.clientX, e.clientY, e.pointerId);
-
-      try {
-        canvas.setPointerCapture(e.pointerId);
-      } catch (err) {}
-    });
-
-    window.addEventListener('pointermove', (e) => {
-      if (pointer.down && e.pointerId === pointer.id) {
-        pMove(e.clientX, e.clientY);
-      }
-    });
-
-    window.addEventListener('pointerup', (e) => {
-      if (pointer.down && e.pointerId === pointer.id) {
-        pUp(e.clientX, e.clientY);
-      }
-    });
-
-    window.addEventListener('pointercancel', (e) => {
-      if (pointer.down && e.pointerId === pointer.id) {
-        pUp(e.clientX, e.clientY);
-      }
-    });
-
-    if (!window.PointerEvent) {
-      canvas.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        const t = e.changedTouches[0];
-        pDown(t.clientX, t.clientY, 'touch');
-      }, { passive: false });
-
-      window.addEventListener('touchmove', (e) => {
-        if (!pointer.down) return;
-        e.preventDefault();
-        const t = e.changedTouches[0];
-        pMove(t.clientX, t.clientY);
-      }, { passive: false });
-
-      window.addEventListener('touchend', (e) => {
-        if (!pointer.down) return;
-        const t = e.changedTouches[0];
-        pUp(t.clientX, t.clientY);
-      }, { passive: false });
-
-      window.addEventListener('touchcancel', (e) => {
-        if (!pointer.down) return;
-        const t = e.changedTouches[0];
-        pUp(t.clientX, t.clientY);
-      }, { passive: false });
-    }
-
-    document.addEventListener('touchmove', (e) => {
-      if (state === 'play') {
-        e.preventDefault();
-      }
+      cv.setPointerCapture && cv.setPointerCapture(e.pointerId);
+      const p = localPos(e.clientX, e.clientY);
+      onDown(p.x, p.y, e.pointerId);
     }, { passive: false });
 
-    // ------------------------------------------------------------
-    // PATH FOLLOWING
-    // ------------------------------------------------------------
-    function prunePath() {
-      while (
-        path.length > 1 &&
-        dist(path[0].x, path[0].y, dog.x, dog.y) < PATH_PRUNE_RADIUS
-      ) {
-        path.shift();
-      }
+    cv.addEventListener('pointermove', (e) => {
+      if (!input.active) return;
+      e.preventDefault();
+      const p = localPos(e.clientX, e.clientY);
+      onMove(p.x, p.y, e.pointerId);
+    }, { passive: false });
+
+    cv.addEventListener('pointerup', (e) => {
+      if (!input.active) return;
+      e.preventDefault();
+      const p = localPos(e.clientX, e.clientY);
+      onUp(p.x, p.y, e.pointerId);
+    }, { passive: false });
+
+    cv.addEventListener('pointercancel', () => { input.active = false; input.id = null; });
+    cv.addEventListener('lostpointercapture', () => { input.active = false; input.id = null; });
+  } else {
+    // fallback touch per browser vecchi
+    cv.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      const p = localPos(t.clientX, t.clientY);
+      onDown(p.x, p.y, t.identifier);
+    }, { passive: false });
+
+    cv.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      const p = localPos(t.clientX, t.clientY);
+      onMove(p.x, p.y, t.identifier);
+    }, { passive: false });
+
+    cv.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      const p = localPos(t.clientX, t.clientY);
+      onUp(p.x, p.y, t.identifier);
+    }, { passive: false });
+
+    cv.addEventListener('mousedown', (e) => {
+      const p = localPos(e.clientX, e.clientY);
+      onDown(p.x, p.y, 'mouse');
+    });
+    window.addEventListener('mousemove', (e) => {
+      const p = localPos(e.clientX, e.clientY);
+      onMove(p.x, p.y, 'mouse');
+    });
+    window.addEventListener('mouseup', (e) => {
+      const p = localPos(e.clientX, e.clientY);
+      onUp(p.x, p.y, 'mouse');
+    });
+  }
+
+  // blocca gesture iOS (pinch / double-tap zoom / rimbalzo)
+  document.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+  document.addEventListener('dblclick', (e) => e.preventDefault());
+})();
+
+/* --- UI ---------------------------------------------------------- */
+const screens = {
+  start: document.getElementById('startScreen'),
+  end: document.getElementById('endScreen'),
+};
+const btnStart = document.getElementById('btnStart');
+const btnRetry = document.getElementById('btnRetry');
+const btnRestart = document.getElementById('btnRestart');
+const btnSound = document.getElementById('btnSound');
+const startFoot = document.getElementById('startFoot');
+
+function showStartScreen() {
+  screens.start.classList.remove('hidden');
+  screens.end.classList.add('hidden');
+  game.state = 'menu';
+}
+
+function startGame() {
+  screens.start.classList.add('hidden');
+  screens.end.classList.add('hidden');
+  Sound.unlock();
+  newLevel();
+}
+
+function showEnd() {
+  const t = game.time;
+  const total = sheep.length;
+  const rebelTotal = sheep.filter((s) => s.rebel).length;
+  const normalTotal = total - rebelTotal;
+
+  let stars = 1;
+  if (t <= CONFIG.stars.three && game.wasted <= CONFIG.stars.maxWasted) stars = 3;
+  else if (t <= CONFIG.stars.two) stars = 2;
+
+  const isRecord = game.best !== null && Math.abs(game.best - t) < 0.001;
+
+  document.getElementById('endStars').innerHTML =
+    [0, 1, 2].map((i) => '<span class="' + (i < stars ? 'on' : '') + '">★</span>').join('');
+
+  document.getElementById('endTitle').textContent =
+    stars === 3 ? 'GREGGE RADUNATO!' : stars === 2 ? 'GREGGE RADUNATO!' : 'MISSIONE COMPIUTA!';
+
+  document.getElementById('endSub').textContent =
+    stars === 3
+      ? 'Le pecore sono nel recinto. Il Border Collie ha fatto il suo dovere.'
+      : stars === 2
+        ? 'Le pecore sono nel recinto. Qualcuna è ancora un po\' offesa.'
+        : 'Le pecore sono nel recinto. Con calma, ma ci sono.';
+
+  const stats = [];
+  stats.push('<div class="stat"><span class="k">Tempo</span><span class="v">' + formatTime(t) + '</span></div>');
+  stats.push('<div class="stat gold"><span class="k">Record</span><span class="v">' + (game.best ? formatTime(game.best) : '--') + '</span></div>');
+  stats.push('<div class="stat"><span class="k">Pecore normali</span><span class="v">' + game.pennedNormal + '/' + normalTotal + '</span></div>');
+  stats.push('<div class="stat"><span class="k">Pecore matte</span><span class="v">' + game.pennedRebel + '/' + rebelTotal + '</span></div>');
+  stats.push('<div class="stat wide"><span class="k">Abbai</span><span class="v">' + game.barks + ' (a vuoto: ' + game.wasted + ')</span></div>');
+  document.getElementById('endStats').innerHTML = stats.join('');
+
+  const lines = [];
+  if (game.isRecord) lines.push('Nuovo record personale!');
+  if (game.ducksStartled > 0) lines.push('Le anatre sono offese (' + game.ducksStartled + ').');
+  if (game.pennedRebel > 0) lines.push('Pecore matte recuperate: ' + game.pennedRebel + '.');
+  document.getElementById('endFoot').textContent = lines.join(' ') || 'Il Border Collie ha fatto il suo dovere.';
+
+  screens.end.classList.remove('hidden');
+  game.state = 'won';
+}
+
+btnStart.addEventListener('click', () => { Sound.click(); startGame(); });
+btnRetry.addEventListener('click', () => { Sound.click(); startGame(); });
+
+btnRestart.addEventListener('click', () => {
+  Sound.click();
+  if (game.state === 'menu') return;
+  startGame();
+});
+
+btnSound.addEventListener('click', () => {
+  Sound.enabled = !Sound.enabled;
+  btnSound.classList.toggle('off', !Sound.enabled);
+  Store.set(SOUND_KEY, Sound.enabled ? '1' : '0');
+  if (Sound.enabled) Sound.click();
+});
+
+/* --- boot -------------------------------------------------------- */
+function boot() {
+  const bestRaw = Store.get(BEST_KEY);
+  const best = bestRaw ? parseFloat(bestRaw) : null;
+  game.best = Number.isFinite(best) && best > 0 ? best : null;
+
+  const soundPref = Store.get(SOUND_KEY);
+  if (soundPref === '0') {
+    Sound.enabled = false;
+    btnSound.classList.add('off');
+  }
+
+  if (game.best) {
+    startFoot.textContent = 'Record personale: ' + formatTime(game.best) + ' · un dito, niente scroll';
+  }
+
+  resizeCanvas();
+  // scena di sottofondo dietro al menu
+  sheep = [];
+  for (let i = 0; i < CONFIG.sheep.count; i++) {
+    sheep.push(makeSheep(rand(W * 0.2, W * 0.8), rand(H * 0.72, H * 0.9), i < 2));
+  }
+  ducks = [];
+  for (let i = 0; i < CONFIG.ducks.count; i++) ducks.push(makeDuck());
+  buildPenSpots(CONFIG.sheep.count);
+
+  updateHud(true);
+  updateBarkChip();
+  game.state = 'menu';
+  requestAnimationFrame(frame);
+}
+
+/* debug / test automatici */
+window.__bch = {
+  game, dog, path: () => path, view, CONFIG,
+  get sheep() { return sheep; },
+  get ducks() { return ducks; },
+  step: (n, dt) => { for (let i = 0; i < n; i++) update(dt || 1 / 60); },
+  bark, startGame, newLevel, win,
+};
+
+/* resize: debounce per non ricalcolare lo sfondo a ogni pixel */
+let resizeT = null;
+function onResize() {
+  if (resizeT) clearTimeout(resizeT);
+  resizeT = setTimeout(() => {
+    const wasPlaying = game.state === 'playing';
+    const rel = sheep.map((s) => ({ x: s.x / W, y: s.y / H }));
+    const rd = { x: dog.x / W, y: dog.y / H };
+    resizeCanvas();
+    // riposiziona gli animali in proporzione al nuovo campo
+    for (let i = 0; i < sheep.length; i++) {
+      sheep[i].x = clamp(rel[i].x * W, 20, W - 20);
+      sheep[i].y = clamp(rel[i].y * H, view.fieldTop + 20, H - 20);
     }
-
-    function getPathTarget() {
-      if (path.length === 0) return null;
-      if (path.length === 1) return path[0];
-
-      let remaining = DOG_LOOKAHEAD;
-
-      for (let i = 0; i < path.length - 1; i++) {
-        const a = path[i];
-        const b = path[i + 1];
-        const d = dist(a.x, a.y, b.x, b.y);
-
-        if (d >= remaining) {
-          const t = remaining / d;
-          return {
-            x: a.x + (b.x - a.x) * t,
-            y: a.y + (b.y - a.y) * t
-          };
-        }
-
-        remaining -= d;
-      }
-
-      return path[path.length - 1];
+    if (wasPlaying) {
+      dog.x = clamp(rd.x * W, 20, W - 20);
+      dog.y = clamp(rd.y * H, view.fieldTop + 20, H - 20);
     }
-
-    function updateDog(dt) {
-      dog.bark = Math.max(0, dog.bark - dt);
-
-      prunePath();
-
-      const target = getPathTarget();
-
-      let desiredVx = 0;
-      let desiredVy = 0;
-
-      if (target) {
-        const dx = target.x - dog.x;
-        const dy = target.y - dog.y;
-        const d = Math.hypot(dx, dy);
-
-        if (d > 1) {
-          const speed = Math.min(DOG_SPEED, d * 7);
-          desiredVx = (dx / d) * speed;
-          desiredVy = (dy / d) * speed;
-        }
-      }
-
-      const steer = Math.min(1, dt * DOG_STEER);
-
-      dog.vx += (desiredVx - dog.vx) * steer;
-      dog.vy += (desiredVy - dog.vy) * steer;
-
-      dog.x += dog.vx * dt;
-      dog.y += dog.vy * dt;
-
-      dog.x = clamp(dog.x, 16, viewW - 16);
-      dog.y = clamp(dog.y, 16, viewH - 16);
-
-      const speed = Math.hypot(dog.vx, dog.vy);
-      if (speed > 8) {
-        dog.angle = Math.atan2(dog.vy, dog.vx);
-      }
-    }
-
-    // ------------------------------------------------------------
-    // SHEEP FLOCKING
-    // ------------------------------------------------------------
-    function updateSheep(dt) {
-      const penCx = pen.x + pen.w / 2;
-      const penCy = pen.y + pen.h / 2;
-
-      for (let i = 0; i < sheep.length; i++) {
-        const s = sheep[i];
-
-        if (s.penned) {
-          const dx = s.spotX - s.x;
-          const dy = s.spotY - s.y;
-
-          s.x += dx * Math.min(1, dt * 5);
-          s.y += dy * Math.min(1, dt * 5);
-
-          s.vx = 0;
-          s.vy = 0;
-          continue;
-        }
-
-        let ax = 0;
-        let ay = 0;
-
-        let count = 0;
-        let centerX = 0;
-        let centerY = 0;
-        let avgVx = 0;
-        let avgVy = 0;
-        let sepX = 0;
-        let sepY = 0;
-
-        for (let j = 0; j < sheep.length; j++) {
-          if (i === j) continue;
-
-          const o = sheep[j];
-          if (o.penned) continue;
-
-          const d = dist(s.x, s.y, o.x, o.y);
-
-          if (d < PERCEPTION) {
-            count++;
-            centerX += o.x;
-            centerY += o.y;
-            avgVx += o.vx;
-            avgVy += o.vy;
-
-            if (d < SEPARATION_DIST && d > 0.001) {
-              const push = 1 - d / SEPARATION_DIST;
-              sepX += ((s.x - o.x) / d) * push;
-              sepY += ((s.y - o.y) / d) * push;
-            }
-          }
-        }
-
-        if (count > 0) {
-          centerX /= count;
-          centerY /= count;
-          avgVx /= count;
-          avgVy /= count;
-
-          // Coesione
-          ax += (centerX - s.x) * COHESION;
-          ay += (centerY - s.y) * COHESION;
-
-          // Allineamento
-          ax += (avgVx - s.vx) * ALIGNMENT;
-          ay += (avgVy - s.vy) * ALIGNMENT;
-
-          // Separazione
-          ax += sepX * SEPARATION;
-          ay += sepY * SEPARATION;
-        }
-
-        // Fuga dal cane
-        const dxDog = s.x - dog.x;
-        const dyDog = s.y - dog.y;
-        const dDog = Math.hypot(dxDog, dyDog);
-
-        const radius = dog.bark > 0 ? BARK_RADIUS : DOG_RADIUS;
-        const force = dog.bark > 0 ? BARK_FORCE : FLEE_FORCE;
-
-        let fleeing = false;
-
-        if (dDog < radius && dDog > 0.001) {
-          const f = (1 - dDog / radius) * force;
-          ax += (dxDog / dDog) * f;
-          ay += (dyDog / dDog) * f;
-          fleeing = true;
-        }
-
-        // Attrazione verso il recinto
-        const toPenX = penCx - s.x;
-        const toPenY = penCy - s.y;
-        const penDist = Math.hypot(toPenX, toPenY);
-
-        if (penDist > 1) {
-          let pull = 0;
-
-          if (dog.y > s.y + 12) {
-            pull = fleeing ? PEN_PULL_ACTIVE : 12;
-          }
-
-          if (s.y < pen.y + pen.h + 90) {
-            pull = Math.max(pull, PEN_PULL_NEAR);
-          }
-
-          ax += (toPenX / penDist) * pull;
-          ay += (toPenY / penDist) * pull;
-        }
-
-        // Bordi campo
-        const margin = 42;
-
-        if (s.x < margin) {
-          ax += BOUNDARY_FORCE * (1 - s.x / margin);
-        }
-
-        if (s.x > viewW - margin) {
-          ax -= BOUNDARY_FORCE * (1 - (viewW - s.x) / margin);
-        }
-
-        if (s.y < margin) {
-          ay += BOUNDARY_FORCE * (1 - s.y / margin);
-        }
-
-        if (s.y > viewH - margin) {
-          ay -= BOUNDARY_FORCE * (1 - (viewH - s.y) / margin);
-        }
-
-        // Integrazione
-        s.vx += ax * dt;
-        s.vy += ay * dt;
-
-        const panic = dog.bark > 0 && dDog < radius;
-        const maxSpeed = panic ? SHEEP_MAX_SPEED_PANIC : SHEEP_MAX_SPEED;
-
-        const speed = Math.hypot(s.vx, s.vy);
-
-        if (speed > maxSpeed) {
-          s.vx *= maxSpeed / speed;
-          s.vy *= maxSpeed / speed;
-        }
-
-        s.vx *= Math.max(0, 1 - dt * FRICTION);
-        s.vy *= Math.max(0, 1 - dt * FRICTION);
-
-        s.x += s.vx * dt;
-        s.y += s.vy * dt;
-
-        s.x = clamp(s.x, 14, viewW - 14);
-        s.y = clamp(s.y, 14, viewH - 14);
-
-        if (Math.hypot(s.vx, s.vy) > 6) {
-          s.angle = Math.atan2(s.vy, s.vx);
-        }
-
-        // Recinto
-        const insidePen =
-          s.x > pen.x &&
-          s.x < pen.x + pen.w &&
-          s.y > pen.y &&
-          s.y < pen.y + pen.h;
-
-        if (insidePen) {
-          s.penTimer += dt;
-
-          if (s.penTimer > 0.35) {
-            s.penned = true;
-            const spot = getPenSpot(pennedCount);
-            s.spotX = spot.x;
-            s.spotY = spot.y;
-            pennedCount++;
-          }
-        } else {
-          s.penTimer = 0;
-        }
-      }
-
-      if (pennedCount >= SHEEP_COUNT) {
-        endGame();
-      }
-    }
-
-    // ------------------------------------------------------------
-    // DRAW
-    // ------------------------------------------------------------
-    function drawField() {
-      const g = ctx.createLinearGradient(0, 0, 0, viewH);
-      g.addColorStop(0, '#2f7a35');
-      g.addColorStop(1, '#1d5323');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, viewW, viewH);
-
-      // texture prato semplice
-      ctx.fillStyle = 'rgba(255,255,255,0.03)';
-      for (let i = 0; i < 24; i++) {
-        const x = (i * 173) % viewW;
-        const y = (i * 239) % viewH;
-        ctx.fillRect(x, y, 3, 3);
-      }
-    }
-
-    function drawPen() {
-      ctx.save();
-
-      ctx.fillStyle = 'rgba(255,244,214,0.10)';
-      ctx.fillRect(pen.x, pen.y, pen.w, pen.h);
-
-      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(pen.x, pen.y, pen.w, pen.h);
-
-      // paletti
-      ctx.fillStyle = 'rgba(255,255,255,0.65)';
-      const posts = 6;
-      for (let i = 0; i <= posts; i++) {
-        const px = pen.x + (pen.w / posts) * i;
-        ctx.fillRect(px - 2, pen.y - 10, 4, 10);
-        ctx.fillRect(px - 2, pen.y + pen.h, 4, 10);
-      }
-
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.font = 'bold 18px system-ui';
-      ctx.textAlign = 'center';
-      ctx.fillText('RECINTO', pen.x + pen.w / 2, pen.y - 18);
-
-      ctx.restore();
-    }
-
-    function drawPath() {
-      if (path.length < 2) return;
-
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255,255,255,0.65)';
-      ctx.lineWidth = 3;
-      ctx.setLineDash([7, 9]);
-      ctx.beginPath();
-      ctx.moveTo(path[0].x, path[0].y);
-
-      for (let i = 1; i < path.length; i++) {
-        ctx.lineTo(path[i].x, path[i].y);
-      }
-
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    function drawSheep(s) {
-      ctx.save();
-      ctx.translate(s.x, s.y);
-      ctx.rotate(s.angle);
-
-      const wiggle = s.penned ? 0 : Math.sin(animTime * 8 + s.wobble) * 1.2;
-
-      // corpo
-      ctx.fillStyle = s.penned ? 'rgba(255,255,255,0.82)' : '#fff';
-      ctx.beginPath();
-      ctx.ellipse(0, wiggle * 0.2, 13, 10, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // lana
-      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // testa
-      ctx.fillStyle = '#1f2937';
-      ctx.beginPath();
-      ctx.ellipse(12, 0, 5.5, 4.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // orecchie
-      ctx.beginPath();
-      ctx.ellipse(10, -5, 3.5, 2, -0.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.ellipse(10, 5, 3.5, 2, 0.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // coda
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(-13, 0, 3.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.restore();
-    }
-
-    function drawDog() {
-      ctx.save();
-      ctx.translate(dog.x, dog.y);
-
-      // raggio abbaio
-      if (dog.bark > 0) {
-        const alpha = dog.bark / BARK_TIME;
-        ctx.strokeStyle = `rgba(255,255,255,${0.55 * alpha})`;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(0, 0, BARK_RADIUS * (1 - alpha * 0.25), 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      ctx.rotate(dog.angle);
-
-      const tailWag = Math.sin(animTime * 18) * 6;
-
-      // coda
-      ctx.strokeStyle = '#111827';
-      ctx.lineWidth = 4;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(-15, 0);
-      ctx.quadraticCurveTo(-25, tailWag, -30, tailWag * 0.4);
-      ctx.stroke();
-
-      // corpo
-      ctx.fillStyle = '#f8fafc';
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 18, 10, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // dorso nero
-      ctx.fillStyle = '#111827';
-      ctx.beginPath();
-      ctx.ellipse(-4, 0, 11, 7, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // testa
-      ctx.fillStyle = '#f8fafc';
-      ctx.beginPath();
-      ctx.arc(17, 0, 8, 0, Math.PI * 2);
-      ctx.fill();
-
-      // muso
-      ctx.beginPath();
-      ctx.ellipse(22, 0, 4.5, 3.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // macchia testa
-      ctx.fillStyle = '#111827';
-      ctx.beginPath();
-      ctx.arc(15, -3, 5, Math.PI * 0.8, Math.PI * 2.05);
-      ctx.fill();
-
-      // orecchie
-      ctx.beginPath();
-      ctx.moveTo(12, -6);
-      ctx.lineTo(8, -13);
-      ctx.lineTo(16, -9);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.moveTo(15, -7);
-      ctx.lineTo(18, -14);
-      ctx.lineTo(22, -6);
-      ctx.closePath();
-      ctx.fill();
-
-      // naso
-      ctx.fillStyle = '#0b1020';
-      ctx.beginPath();
-      ctx.arc(26, 0, 1.8, 0, Math.PI * 2);
-      ctx.fill();
-
-      // occhio
-      ctx.beginPath();
-      ctx.arc(18, -2, 1.4, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.restore();
-    }
-
-    function drawHUD() {
-      ctx.fillStyle = 'rgba(0,0,0,0.28)';
-      ctx.fillRect(0, 0, viewW, 56);
-
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 18px system-ui';
-      ctx.textAlign = 'left';
-      ctx.fillText(`⏱ ${formatTime(time)}`, 14, 34);
-
-      ctx.textAlign = 'center';
-      ctx.fillText(`🐑 ${pennedCount}/${SHEEP_COUNT}`, viewW / 2, 34);
-
-      ctx.textAlign = 'right';
-      ctx.font = '15px system-ui';
-      ctx.fillText(`BEST ${best > 0 ? formatTime(best) : '-'}`, viewW - 14, 34);
-
-      ctx.textAlign = 'center';
-      ctx.font = '14px system-ui';
-      ctx.fillStyle = 'rgba(255,255,255,0.75)';
-      ctx.fillText('DISEGNA il percorso · TAP = abbaio', viewW / 2, viewH - 14);
-    }
-
-    function draw() {
-      ctx.clearRect(0, 0, viewW, viewH);
-
-      drawField();
-      drawPen();
-      drawPath();
-
-      for (const s of sheep) {
-        drawSheep(s);
-      }
-
-      drawDog();
-      drawHUD();
-    }
-
-    // ------------------------------------------------------------
-    // LOOP
-    // ------------------------------------------------------------
-    let last = performance.now();
-
-    function frame(now) {
-      const dt = Math.min(0.033, (now - last) / 1000);
-      last = now;
-
-      animTime += dt;
-
-      if (state === 'play') {
-        time += dt;
-        updateDog(dt);
-        updateSheep(dt);
-      }
-
-      draw();
-      requestAnimationFrame(frame);
-    }
-
-    initField();
-    requestAnimationFrame(frame);
-  </script>
+    path.length = 0;
+  }, 150);
+}
+window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', onResize);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
+
+document.addEventListener('visibilitychange', () => { lastFrame = performance.now(); });
+
+boot();
+</script>
 </body>
 </html>
