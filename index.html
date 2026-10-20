@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>SEI POSTI · Prototype 2h</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #0b1020;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    #game {
+      position: fixed;
+      inset: 0;
+      display: block;
+      touch-action: none;
+    }
+
+    #restart {
+      position: fixed;
+      top: 74px;
+      right: 12px;
+      z-index: 20;
+      background: rgba(20, 26, 40, 0.9);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 12px;
+      padding: 8px 12px;
+      font-size: 18px;
+      touch-action: none;
+    }
+
+    #overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(4, 7, 14, 0.84);
+      z-index: 30;
+      padding: 20px;
+    }
+
+    #overlayCard {
+      max-width: 560px;
+      width: 100%;
+      color: #fff;
+      text-align: center;
+      background: rgba(15, 22, 38, 0.92);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 20px;
+      padding: 26px 20px;
+      box-shadow: 0 20px 70px rgba(0,0,0,0.45);
+    }
+
+    #overlayCard h1 {
+      margin: 0 0 8px;
+      font-size: 34px;
+      letter-spacing: 1px;
+    }
+
+    #overlayCard p {
+      margin: 10px 0;
+      line-height: 1.5;
+      color: rgba(255,255,255,0.86);
+      font-size: 16px;
+    }
+
+    #ovBtn {
+      margin-top: 18px;
+      border: 0;
+      border-radius: 14px;
+      padding: 14px 24px;
+      font-size: 20px;
+      font-weight: 800;
+      color: #081018;
+      background: #67e8f9;
+      touch-action: manipulation;
+    }
+
+    .small {
+      font-size: 13px;
+      color: rgba(255,255,255,0.55);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <button id="restart">↻</button>
+
+  <div id="overlay">
+    <div id="overlayCard">
+      <h1 id="ovTitle">SEI POSTI</h1>
+      <p id="ovBody">
+        Prototype 2h · solo flight feel<br><br>
+        <b>TRASCINA</b> = muovi l’elicottero<br>
+        <b>RILASCIA</b> = hover<br>
+        <b>TIENI FERMO IL DITO</b> = verricello<br>
+        <b>ATTERRA SULLA BASE</b> = scarico automatico<br><br>
+        Porta più persone possibile dal TETTO alla BASE.<br>
+        Se voli troppo brusco, il carico va in PANICO.
+      </p>
+      <button id="ovBtn">DECOLLA ▶</button>
+      <p class="small">Niente AI · niente arte · solo manovrabilità e atterraggio</p>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const ovTitle = document.getElementById('ovTitle');
+    const ovBody = document.getElementById('ovBody');
+    const ovBtn = document.getElementById('ovBtn');
+    const restartBtn = document.getElementById('restart');
+
+    // ------------------------------------------------------------
+    // COSTANTI TUNING
+    // ------------------------------------------------------------
+    const TOTAL = 12;              // persone sul tetto
+    const CAP = 6;                 // posti elicottero
+
+    const K = 9.5;                 // reattività: più alto = più nervoso
+    const DAMP = 6.4;              // smorzamento: più alto = più stabile
+    const MAX_ACCEL = 1900;        // accelerazione massima px/s^2
+    const MAX_SPEED = 430;         // velocità massima px/s
+
+    const PANIC_ACCEL_THRESHOLD = 950;
+    const PANIC_SPEED_THRESHOLD = 340;
+
+    // ------------------------------------------------------------
+    // RESIZE / WORLD
+    // ------------------------------------------------------------
+    let dpr = 1;
+    let viewW = 0;
+    let viewH = 0;
+    let worldW = 0;
+    let groundY = 0;
+    let padX = 180;
+    let roofX = 0;
+    let roofY = 0;
+    let landedY = 0;
+
+    function resize() {
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      viewW = window.innerWidth;
+      viewH = window.innerHeight;
+
+      canvas.width = Math.floor(viewW * dpr);
+      canvas.height = Math.floor(viewH * dpr);
+      canvas.style.width = viewW + 'px';
+      canvas.style.height = viewH + 'px';
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      worldW = Math.max(1200, viewW + 800);
+      groundY = viewH - 84;
+      padX = Math.min(190, worldW * 0.16);
+      roofX = worldW - 230;
+      roofY = groundY - 190;
+      landedY = groundY - 28;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    // ------------------------------------------------------------
+    // STATO GIOCO
+    // ------------------------------------------------------------
+    let state = 'ready'; // ready | play | end
+    let time = 120;
+    let fuel = 100;
+    let slots = 0;
+    let rescued = 0;
+    let lost = 0;
+    let roofPeople = TOTAL;
+    let panic = 0;
+
+    let rotor = 0;
+    let fps = 0;
+    let fpsAcc = 0;
+    let fpsCount = 0;
+
+    let loadTimer = 0;
+    let unloadTimer = 0;
+    let loading = false;
+    let unloading = false;
+    let currentHold = false;
+    let lastAccel = 0;
+
+    let messages = [];
+
+    const heli = {
+      x: padX,
+      y: landedY,
+      vx: 0,
+      vy: 0
+    };
+
+    let landed = true;
+    let camX = 0;
+
+    const pointer = {
+      down: false,
+      id: null,
+      x: 0,
+      y: 0,
+      prevX: 0,
+      prevY: 0,
+      lastX: 0,
+      lastY: 0,
+      downX: 0,
+      downY: 0,
+      downTime: 0,
+      moved: false,
+      stationary: 0,
+      targetX: padX,
+      targetY: landedY
+    };
+
+    function clampTarget() {
+      pointer.targetX = Math.max(30, Math.min(worldW - 30, pointer.targetX));
+      pointer.targetY = Math.max(64, Math.min(groundY - 18, pointer.targetY));
+    }
+
+    function addMsg(text) {
+      messages.push({ text, ttl: 1.7 });
+      if (messages.length > 5) messages.shift();
+    }
+
+    function reset() {
+      state = 'play';
+      time = 120;
+      fuel = 100;
+      slots = 0;
+      rescued = 0;
+      lost = 0;
+      roofPeople = TOTAL;
+      panic = 0;
+
+      loadTimer = 0;
+      unloadTimer = 0;
+      loading = false;
+      unloading = false;
+      currentHold = false;
+      lastAccel = 0;
+
+      messages = [];
+
+      heli.x = padX;
+      heli.y = landedY;
+      heli.vx = 0;
+      heli.vy = 0;
+
+      landed = true;
+      camX = 0;
+
+      pointer.down = false;
+      pointer.stationary = 0;
+      pointer.targetX = heli.x;
+      pointer.targetY = heli.y;
+
+      overlay.style.display = 'none';
+    }
+
+    function end(reason) {
+      if (state !== 'play') return;
+      state = 'end';
+
+      ovTitle.textContent = reason;
+      ovBody.innerHTML = `
+        <b>${rescued}</b> salvati<br>
+        <b>${lost}</b> caduti<br>
+        <b>${roofPeople}</b> rimasti sul tetto<br><br>
+        Carico finale: ${slots}/${CAP}<br>
+        Autonomia residua: ${Math.round(fuel)}%<br><br>
+        <span class="small">Prototype: conta solo il feeling di volo, carico e atterraggio.</span>
+      `;
+      ovBtn.textContent = 'RIPROVA ↻';
+      overlay.style.display = 'flex';
+    }
+
+    ovBtn.addEventListener('click', () => {
+      reset();
+    });
+
+    restartBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+    });
+
+    restartBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      reset();
+    });
+
+    // ------------------------------------------------------------
+    // INPUT
+    // ------------------------------------------------------------
+    canvas.addEventListener('pointerdown', (e) => {
+      if (state !== 'play') return;
+      e.preventDefault();
+
+      pointer.down = true;
+      pointer.id = e.pointerId;
+
+      pointer.x = e.clientX;
+      pointer.y = e.clientY;
+      pointer.prevX = e.clientX;
+      pointer.prevY = e.clientY;
+      pointer.lastX = e.clientX;
+      pointer.lastY = e.clientY;
+      pointer.downX = e.clientX;
+      pointer.downY = e.clientY;
+      pointer.downTime = performance.now();
+      pointer.moved = false;
+      pointer.stationary = 0;
+
+      // Controllo relativo: quando premi, il target parte dall'elicottero.
+      // Così il dito non deve "toccare" l'elicottero.
+      pointer.targetX = heli.x;
+      pointer.targetY = heli.y;
+
+      canvas.setPointerCapture(e.pointerId);
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (!pointer.down || e.pointerId !== pointer.id) return;
+      e.preventDefault();
+
+      const dx = e.clientX - pointer.lastX;
+      const dy = e.clientY - pointer.lastY;
+
+      pointer.lastX = e.clientX;
+      pointer.lastY = e.clientY;
+      pointer.x = e.clientX;
+      pointer.y = e.clientY;
+
+      pointer.targetX += dx;
+      pointer.targetY += dy;
+
+      clampTarget();
+
+      const dist = Math.hypot(e.clientX - pointer.downX, e.clientY - pointer.downY);
+      if (dist > 14) pointer.moved = true;
+    });
+
+    function onPointerEnd(e) {
+      if (!pointer.down || e.pointerId !== pointer.id) return;
+      pointer.down = false;
+
+      const dur = performance.now() - pointer.downTime;
+      const dist = Math.hypot(e.clientX - pointer.downX, e.clientY - pointer.downY);
+
+      // Tap rapido = waypoint secco
+      if (!pointer.moved && dur < 220) {
+        pointer.targetX = e.clientX + camX;
+        pointer.targetY = e.clientY;
+        clampTarget();
+      }
+    }
+
+    canvas.addEventListener('pointerup', onPointerEnd);
+    canvas.addEventListener('pointercancel', onPointerEnd);
+
+    // ------------------------------------------------------------
+    // UPDATE
+    // ------------------------------------------------------------
+    function update(dt) {
+      rotor += dt * (landed ? 10 : 26);
+
+      if (state !== 'play') return;
+
+      time -= dt;
+      if (time <= 0) {
+        time = 0;
+        end('TEMPO FINITO');
+        return;
+      }
+
+      // HOLD / VERRICELLO
+      let holdActive = false;
+
+      if (pointer.down) {
+        const moveDist = Math.hypot(pointer.x - pointer.prevX, pointer.y - pointer.prevY);
+
+        if (moveDist < 2.8) {
+          pointer.stationary += dt;
+        } else {
+          pointer.stationary = 0;
+        }
+
+        pointer.prevX = pointer.x;
+        pointer.prevY = pointer.y;
+
+        holdActive = pointer.stationary > 0.22;
+      } else {
+        pointer.stationary = 0;
+      }
+
+      currentHold = holdActive;
+
+      // TARGET
+      let tx = pointer.down ? pointer.targetX : heli.x;
+      let ty = pointer.down ? pointer.targetY : heli.y;
+
+      const nearPad = Math.abs(heli.x - padX) < 90;
+
+      // ASSIST ATTERRAGGIO
+      // Se sei vicino alla BASE e stai chiedendo una quota bassa,
+      // il gioco ti aiuta ad allinearti e scendere.
+      if (!landed && nearPad && ty > groundY - 115) {
+        ty = landedY;
+        tx = padX + (tx - padX) * 0.30;
+      }
+
+      let ax = 0;
+      let ay = 0;
+
+      if (landed) {
+        heli.vx = 0;
+        heli.vy = 0;
+        heli.y = landedY;
+
+        // Decollo se trascini verso l'alto
+        if (pointer.down && ty < landedY - 52) {
+          landed = false;
+          addMsg('DECOLLO');
+        }
+      } else {
+        const dx = tx - heli.x;
+        const dy = ty - heli.y;
+
+        ax = dx * K - heli.vx * DAMP;
+        ay = dy * K - heli.vy * DAMP;
+
+        const aMag = Math.hypot(ax, ay);
+        if (aMag > MAX_ACCEL) {
+          const s = MAX_ACCEL / aMag;
+          ax *= s;
+          ay *= s;
+        }
+
+        heli.vx += ax * dt;
+        heli.vy += ay * dt;
+
+        const vMag = Math.hypot(heli.vx, heli.vy);
+        if (vMag > MAX_SPEED) {
+          const s = MAX_SPEED / vMag;
+          heli.vx *= s;
+          heli.vy *= s;
+        }
+
+        heli.x += heli.vx * dt;
+        heli.y += heli.vy * dt;
+
+        heli.x = Math.max(30, Math.min(worldW - 30, heli.x));
+        heli.y = Math.max(64, Math.min(groundY - 18, heli.y));
+
+        const overPadNow = Math.abs(heli.x - padX) < 90;
+        const speedNow = Math.hypot(heli.vx, heli.vy);
+
+        if (overPadNow && Math.abs(heli.y - landedY) < 14 && speedNow < 55) {
+          landed = true;
+          heli.y = landedY;
+          heli.vx = 0;
+          heli.vy = 0;
+          addMsg('ATTERRATO');
+        }
+      }
+
+      lastAccel = Math.hypot(ax, ay);
+      const speed = Math.hypot(heli.vx, heli.vy);
+
+      // AUTONOMIA
+      fuel -= (0.55 + speed / 2500) * dt;
+      if (fuel <= 0) {
+        fuel = 0;
+        end('AUTONOMIA ESAURITA');
+        return;
+      }
+
+      // PANICO CARICO
+      if (slots > 0) {
+        let inc = 0;
+
+        if (lastAccel > PANIC_ACCEL_THRESHOLD) {
+          inc += (lastAccel - PANIC_ACCEL_THRESHOLD) * 0.024;
+        }
+
+        if (speed > PANIC_SPEED_THRESHOLD) {
+          inc += (speed - PANIC_SPEED_THRESHOLD) * 0.05;
+        }
+
+        if (inc === 0 && lastAccel < 360 && speed < 180) {
+          panic -= 16 * dt;
+        } else {
+          panic += inc * dt;
+          panic -= 3 * dt;
+        }
+
+        panic = Math.max(0, Math.min(100, panic));
+
+        if (panic >= 100) {
+          slots--;
+          lost++;
+          panic = 58;
+          addMsg('💀 UN PASSEGGERO È CADUTO');
+        }
+      } else {
+        panic = Math.max(0, panic - 35 * dt);
+      }
+
+      // CAMERA
+      camX = Math.max(0, Math.min(worldW - viewW, heli.x - viewW * 0.45));
+
+      // ------------------------------------------------------------
+      // INTERAZIONI
+      // ------------------------------------------------------------
+      loading = false;
+      unloading = false;
+
+      const overRoof = Math.abs(heli.x - roofX) < 95;
+      const hoverRoof = heli.y > roofY - 145 && heli.y < roofY - 8;
+      const lowSpeed = speed < 60;
+
+      // CARICO DAL TETTO
+      if (!landed && overRoof && hoverRoof && holdActive && lowSpeed && roofPeople > 0 && slots < CAP) {
+        loading = true;
+        loadTimer += dt;
+
+        if (loadTimer >= 0.68) {
+          loadTimer = 0;
+          roofPeople--;
+          slots++;
+          panic = Math.min(100, panic + 7);
+          addMsg('🧍 +1 A BORDO');
+        }
+      } else {
+        loadTimer = Math.max(0, loadTimer - dt * 2);
+      }
+
+      // SCARICO IN BASE
+      const overBase = Math.abs(heli.x - padX) < 95;
+      const hoverBase = heli.y > groundY - 125;
+
+      const canUnloadLanded = landed && overBase && slots > 0;
+      const canUnloadHover = !landed && overBase && hoverBase && holdActive && lowSpeed && slots > 0;
+
+      if (canUnloadLanded || canUnloadHover) {
+        unloading = true;
+        unloadTimer += dt;
+
+        const interval = landed ? 0.34 : 0.50;
+
+        if (unloadTimer >= interval) {
+          unloadTimer = 0;
+          slots--;
+          rescued++;
+          addMsg('🏠 SALVATO');
+
+          if (rescued >= TOTAL) {
+            end('TUTTI SALVATI');
+            return;
+          }
+        }
+      } else {
+        unloadTimer = Math.max(0, unloadTimer - dt * 2);
+      }
+
+      // MESSAGES TTL
+      messages = messages.filter(m => {
+        m.ttl -= dt;
+        return m.ttl > 0;
+      });
+    }
+
+    // ------------------------------------------------------------
+    // DRAW
+    // ------------------------------------------------------------
+    function draw() {
+      ctx.clearRect(0, 0, viewW, viewH);
+
+      // Sky
+      const g = ctx.createLinearGradient(0, 0, 0, viewH);
+      g.addColorStop(0, '#0b1020');
+      g.addColorStop(1, '#182238');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, viewW, viewH);
+
+      // Ground
+      ctx.fillStyle = '#10151b';
+      ctx.fillRect(0, groundY, viewW, viewH - groundY);
+
+      ctx.save();
+      ctx.translate(-camX, 0);
+
+      // BASE
+      ctx.fillStyle = '#12351a';
+      ctx.fillRect(padX - 85, groundY - 10, 170, 12);
+
+      ctx.fillStyle = '#48d15c';
+      ctx.font = 'bold 18px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('BASE', padX, groundY - 20);
+
+      if (Math.abs(heli.x - padX) < 95) {
+        ctx.strokeStyle = 'rgba(72,209,92,0.55)';
+        ctx.strokeRect(padX - 85, groundY - 100, 170, 90);
+      }
+
+      // ROOF / TETTO
+      ctx.fillStyle = '#332718';
+      ctx.fillRect(roofX - 95, roofY, 190, groundY - roofY);
+
+      ctx.fillStyle = '#5d452a';
+      ctx.fillRect(roofX - 105, roofY, 210, 16);
+
+      ctx.fillStyle = '#ffd28a';
+      ctx.font = 'bold 18px system-ui';
+      ctx.fillText('TETTO', roofX, roofY - 24);
+
+      // People on roof
+      for (let i = 0; i < roofPeople; i++) {
+        const px = roofX - 66 + (i % 6) * 24;
+        const py = roofY - 16 - Math.floor(i / 6) * 20;
+
+        ctx.fillStyle = '#ffe0b2';
+        ctx.beginPath();
+        ctx.arc(px, py, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#4c3a24';
+        ctx.fillRect(px - 3, py + 6, 6, 10);
+      }
+
+      // Cable
+      if (loading) {
+        ctx.strokeStyle = 'rgba(140,220,255,0.9)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(heli.x, heli.y + 18);
+        ctx.lineTo(roofX, roofY - 6);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      }
+
+      if (unloading && !landed) {
+        ctx.strokeStyle = 'rgba(120,255,150,0.9)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(heli.x, heli.y + 18);
+        ctx.lineTo(padX, groundY - 8);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      }
+
+      // Target
+      if (pointer.down) {
+        ctx.strokeStyle = 'rgba(103,232,249,0.65)';
+        ctx.beginPath();
+        ctx.arc(pointer.targetX, pointer.targetY, 10, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(pointer.targetX - 16, pointer.targetY);
+        ctx.lineTo(pointer.targetX + 16, pointer.targetY);
+        ctx.moveTo(pointer.targetX, pointer.targetY - 16);
+        ctx.lineTo(pointer.targetX, pointer.targetY + 16);
+        ctx.stroke();
+      }
+
+      // Heli shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.beginPath();
+      ctx.ellipse(heli.x, groundY - 4, 32, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Heli body
+      ctx.fillStyle = '#dfe7ee';
+      ctx.fillRect(heli.x - 30, heli.y - 12, 60, 26);
+
+      ctx.fillStyle = '#9fb2c1';
+      ctx.fillRect(heli.x - 54, heli.y - 6, 28, 10);
+
+      ctx.fillStyle = '#223041';
+      ctx.fillRect(heli.x + 14, heli.y - 8, 14, 12);
+
+      // Rotor
+      const r = Math.sin(rotor) * 42;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(heli.x - r, heli.y - 22);
+      ctx.lineTo(heli.x + r, heli.y - 22);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+
+      // Skids
+      ctx.strokeStyle = '#8fa0b0';
+      ctx.beginPath();
+      ctx.moveTo(heli.x - 28, heli.y + 20);
+      ctx.lineTo(heli.x + 28, heli.y + 20);
+
+      ctx.moveTo(heli.x - 18, heli.y + 14);
+      ctx.lineTo(heli.x - 18, heli.y + 20);
+
+      ctx.moveTo(heli.x + 18, heli.y + 14);
+      ctx.lineTo(heli.x + 18, heli.y + 20);
+      ctx.stroke();
+
+      // Seats / passengers
+      for (let i = 0; i < CAP; i++) {
+        const px = heli.x - 25 + i * 10;
+        const py = heli.y + 32;
+
+        ctx.fillStyle = i < slots ? '#7dff8a' : 'rgba(255,255,255,0.18)';
+        ctx.beginPath();
+        ctx.arc(px, py, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Panic mini bar above heli
+      if (slots > 0) {
+        const w = 64;
+        const x = heli.x - w / 2;
+        const y = heli.y - 46;
+
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillRect(x, y, w, 7);
+
+        ctx.fillStyle = panic > 70 ? '#ff4d4d' : panic > 40 ? '#ffb020' : '#67e8f9';
+        ctx.fillRect(x, y, w * panic / 100, 7);
+      }
+
+      // Hold indicator
+      if (currentHold) {
+        ctx.fillStyle = 'rgba(103,232,249,0.95)';
+        ctx.font = 'bold 14px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('VERRICELLO', heli.x, heli.y - 58);
+      }
+
+      ctx.restore();
+
+      // HUD
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(0, 0, viewW, 64);
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 18px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText(`⏱ ${Math.ceil(time)}s`, 14, 26);
+
+      ctx.font = '16px system-ui';
+      ctx.fillText(`🧍 ${slots}/${CAP} · 🏠 ${rescued} · 💀 ${lost}`, 14, 50);
+
+      // Fuel
+      const fuelW = 130;
+      const fuelX = viewW - fuelW - 14;
+
+      ctx.fillStyle = 'rgba(255,255,255,0.16)';
+      ctx.fillRect(fuelX, 12, fuelW, 12);
+
+      ctx.fillStyle = fuel < 25 ? '#ff5d5d' : '#ffd54a';
+      ctx.fillRect(fuelX, 12, fuelW * fuel / 100, 12);
+
+      ctx.font = '12px system-ui';
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.textAlign = 'right';
+      ctx.fillText('AUTONOMIA', viewW - 14, 40);
+
+      // Panic HUD
+      if (slots > 0) {
+        const pw = 170;
+        const px = (viewW - pw) / 2;
+
+        ctx.fillStyle = 'rgba(255,255,255,0.16)';
+        ctx.fillRect(px, 12, pw, 12);
+
+        ctx.fillStyle = panic > 70 ? '#ff4d4d' : panic > 40 ? '#ffb020' : '#67e8f9';
+        ctx.fillRect(px, 12, pw * panic / 100, 12);
+
+        ctx.font = '12px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.fillText('PANICO CARICO', viewW / 2, 40);
+      }
+
+      // Messages
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 18px system-ui';
+      messages.forEach((m, i) => {
+        ctx.fillStyle = `rgba(255,255,255,${Math.min(1, m.ttl)})`;
+        ctx.fillText(m.text, viewW / 2, viewH - 130 - i * 26);
+      });
+
+      // Telemetry
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(255,255,255,0.68)';
+
+      const speed = Math.hypot(heli.vx, heli.vy).toFixed(0);
+      const accel = lastAccel.toFixed(0);
+
+      ctx.fillText(
+        `v:${speed}px/s a:${accel} panic:${panic.toFixed(0)}% fuel:${fuel.toFixed(0)}% ` +
+        `hold:${currentHold ? 'ON' : 'off'} landed:${landed ? 'YES' : 'no'} roof:${roofPeople} fps:${fps.toFixed(0)}`,
+        12,
+        viewH - 12
+      );
+    }
+
+    // ------------------------------------------------------------
+    // LOOP
+    // ------------------------------------------------------------
+    let last = performance.now();
+
+    function frame(now) {
+      const dt = Math.min(0.033, (now - last) / 1000);
+      last = now;
+
+      fpsAcc += dt;
+      fpsCount++;
+
+      if (fpsAcc >= 0.5) {
+        fps = fpsCount / fpsAcc;
+        fpsAcc = 0;
+        fpsCount = 0;
+      }
+
+      update(dt);
+      draw();
+      requestAnimationFrame(frame);
+    }
+
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
