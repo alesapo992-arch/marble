@@ -2,8 +2,8 @@
 <html lang="it">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>SEI POSTI · Prototype 2h</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>SEI POSTI · Prototype corretto</title>
   <style>
     html, body {
       margin: 0;
@@ -14,6 +14,7 @@
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
+      overscroll-behavior: none;
     }
 
     #game {
@@ -25,10 +26,10 @@
 
     #restart {
       position: fixed;
-      top: 74px;
+      top: max(74px, env(safe-area-inset-top));
       right: 12px;
       z-index: 20;
-      background: rgba(20, 26, 40, 0.9);
+      background: rgba(20, 26, 40, 0.92);
       color: #fff;
       border: 1px solid rgba(255,255,255,0.25);
       border-radius: 12px;
@@ -53,7 +54,7 @@
       width: 100%;
       color: #fff;
       text-align: center;
-      background: rgba(15, 22, 38, 0.92);
+      background: rgba(15, 22, 38, 0.94);
       border: 1px solid rgba(255,255,255,0.14);
       border-radius: 20px;
       padding: 26px 20px;
@@ -69,7 +70,7 @@
     #overlayCard p {
       margin: 10px 0;
       line-height: 1.5;
-      color: rgba(255,255,255,0.86);
+      color: rgba(255,255,255,0.88);
       font-size: 16px;
     }
 
@@ -99,10 +100,11 @@
     <div id="overlayCard">
       <h1 id="ovTitle">SEI POSTI</h1>
       <p id="ovBody">
-        Prototype 2h · solo flight feel<br><br>
+        Prototype corretto · flight feel<br><br>
         <b>TRASCINA</b> = muovi l’elicottero<br>
         <b>RILASCIA</b> = hover<br>
-        <b>TIENI FERMO IL DITO</b> = verricello<br>
+        <b>TAP</b> = vai lì / decollo se sei a terra<br>
+        <b>TIENI FERMO</b> = verricello<br>
         <b>ATTERRA SULLA BASE</b> = scarico automatico<br><br>
         Porta più persone possibile dal TETTO alla BASE.<br>
         Se voli troppo brusco, il carico va in PANICO.
@@ -126,19 +128,19 @@
     // ------------------------------------------------------------
     // COSTANTI TUNING
     // ------------------------------------------------------------
-    const TOTAL = 12;              // persone sul tetto
-    const CAP = 6;                 // posti elicottero
+    const TOTAL = 12;
+    const CAP = 6;
 
-    const K = 9.5;                 // reattività: più alto = più nervoso
-    const DAMP = 6.4;              // smorzamento: più alto = più stabile
-    const MAX_ACCEL = 1900;        // accelerazione massima px/s^2
-    const MAX_SPEED = 430;         // velocità massima px/s
+    const K = 9.5;
+    const DAMP = 6.4;
+    const MAX_ACCEL = 1900;
+    const MAX_SPEED = 430;
 
     const PANIC_ACCEL_THRESHOLD = 950;
     const PANIC_SPEED_THRESHOLD = 340;
 
     // ------------------------------------------------------------
-    // RESIZE / WORLD
+    // WORLD / RESIZE
     // ------------------------------------------------------------
     let dpr = 1;
     let viewW = 0;
@@ -149,6 +151,15 @@
     let roofX = 0;
     let roofY = 0;
     let landedY = 0;
+
+    let landed = false;
+
+    const heli = {
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0
+    };
 
     function resize() {
       dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -166,12 +177,22 @@
       groundY = viewH - 84;
       padX = Math.min(190, worldW * 0.16);
       roofX = worldW - 230;
-      roofY = groundY - 190;
+      roofY = Math.max(96, groundY - 190);
       landedY = groundY - 28;
+
+      if (landed) {
+        heli.y = landedY;
+      }
+
+      heli.x = Math.max(30, Math.min(worldW - 30, heli.x || padX + 160));
+      heli.y = Math.max(64, Math.min(groundY - 18, heli.y || landedY));
     }
 
     window.addEventListener('resize', resize);
     resize();
+
+    heli.x = padX + 160;
+    heli.y = Math.max(140, groundY - 260);
 
     // ------------------------------------------------------------
     // STATO GIOCO
@@ -196,17 +217,13 @@
     let unloading = false;
     let currentHold = false;
     let lastAccel = 0;
+    let takeoffCooldown = 0;
+
+    let autoActive = false;
+    let autoX = heli.x;
+    let autoY = heli.y;
 
     let messages = [];
-
-    const heli = {
-      x: padX,
-      y: landedY,
-      vx: 0,
-      vy: 0
-    };
-
-    let landed = true;
     let camX = 0;
 
     const pointer = {
@@ -223,13 +240,21 @@
       downTime: 0,
       moved: false,
       stationary: 0,
-      targetX: padX,
-      targetY: landedY
+      targetX: heli.x,
+      targetY: heli.y
     };
 
+    function clampX(x) {
+      return Math.max(30, Math.min(worldW - 30, x));
+    }
+
+    function clampY(y) {
+      return Math.max(64, Math.min(groundY - 18, y));
+    }
+
     function clampTarget() {
-      pointer.targetX = Math.max(30, Math.min(worldW - 30, pointer.targetX));
-      pointer.targetY = Math.max(64, Math.min(groundY - 18, pointer.targetY));
+      pointer.targetX = clampX(pointer.targetX);
+      pointer.targetY = clampY(pointer.targetY);
     }
 
     function addMsg(text) {
@@ -253,15 +278,18 @@
       unloading = false;
       currentHold = false;
       lastAccel = 0;
+      takeoffCooldown = 0;
+
+      autoActive = false;
 
       messages = [];
 
-      heli.x = padX;
-      heli.y = landedY;
+      heli.x = padX + 160;
+      heli.y = Math.max(140, groundY - 260);
       heli.vx = 0;
       heli.vy = 0;
 
-      landed = true;
+      landed = false;
       camX = 0;
 
       pointer.down = false;
@@ -269,6 +297,7 @@
       pointer.targetX = heli.x;
       pointer.targetY = heli.y;
 
+      addMsg('TRASCINA PER VOLARE');
       overlay.style.display = 'none';
     }
 
@@ -303,73 +332,145 @@
     });
 
     // ------------------------------------------------------------
-    // INPUT
+    // INPUT UNIFICATO
     // ------------------------------------------------------------
-    canvas.addEventListener('pointerdown', (e) => {
+    function pDown(x, y, id) {
       if (state !== 'play') return;
-      e.preventDefault();
+      if (pointer.down) return;
+
+      autoActive = false;
 
       pointer.down = true;
-      pointer.id = e.pointerId;
+      pointer.id = id;
 
-      pointer.x = e.clientX;
-      pointer.y = e.clientY;
-      pointer.prevX = e.clientX;
-      pointer.prevY = e.clientY;
-      pointer.lastX = e.clientX;
-      pointer.lastY = e.clientY;
-      pointer.downX = e.clientX;
-      pointer.downY = e.clientY;
+      pointer.x = x;
+      pointer.y = y;
+      pointer.prevX = x;
+      pointer.prevY = y;
+      pointer.lastX = x;
+      pointer.lastY = y;
+      pointer.downX = x;
+      pointer.downY = y;
       pointer.downTime = performance.now();
       pointer.moved = false;
       pointer.stationary = 0;
 
-      // Controllo relativo: quando premi, il target parte dall'elicottero.
-      // Così il dito non deve "toccare" l'elicottero.
+      // controllo relativo: il target parte dall'elicottero
       pointer.targetX = heli.x;
       pointer.targetY = heli.y;
+    }
 
-      canvas.setPointerCapture(e.pointerId);
-    });
+    function pMove(x, y) {
+      if (!pointer.down) return;
 
-    canvas.addEventListener('pointermove', (e) => {
-      if (!pointer.down || e.pointerId !== pointer.id) return;
-      e.preventDefault();
+      const dx = x - pointer.lastX;
+      const dy = y - pointer.lastY;
 
-      const dx = e.clientX - pointer.lastX;
-      const dy = e.clientY - pointer.lastY;
-
-      pointer.lastX = e.clientX;
-      pointer.lastY = e.clientY;
-      pointer.x = e.clientX;
-      pointer.y = e.clientY;
+      pointer.lastX = x;
+      pointer.lastY = y;
+      pointer.x = x;
+      pointer.y = y;
 
       pointer.targetX += dx;
       pointer.targetY += dy;
 
       clampTarget();
 
-      const dist = Math.hypot(e.clientX - pointer.downX, e.clientY - pointer.downY);
+      const dist = Math.hypot(x - pointer.downX, y - pointer.downY);
       if (dist > 14) pointer.moved = true;
-    });
+    }
 
-    function onPointerEnd(e) {
-      if (!pointer.down || e.pointerId !== pointer.id) return;
+    function pUp(x, y) {
+      if (!pointer.down) return;
+
       pointer.down = false;
 
       const dur = performance.now() - pointer.downTime;
-      const dist = Math.hypot(e.clientX - pointer.downX, e.clientY - pointer.downY);
+      const dist = Math.hypot(x - pointer.downX, y - pointer.downY);
 
-      // Tap rapido = waypoint secco
-      if (!pointer.moved && dur < 220) {
-        pointer.targetX = e.clientX + camX;
-        pointer.targetY = e.clientY;
-        clampTarget();
+      if (!pointer.moved && dur < 240) {
+        if (landed) {
+          // Tap quando sei a terra = decollo facile
+          landed = false;
+          takeoffCooldown = 0.8;
+          autoActive = true;
+          autoX = clampX(heli.x);
+          autoY = clampY(landedY - 170);
+          addMsg('DECOLLO');
+        } else {
+          // Tap in volo = waypoint
+          autoActive = true;
+          autoX = clampX(x + camX);
+          autoY = clampY(y);
+        }
       }
     }
 
-    canvas.addEventListener('pointerup', onPointerEnd);
-    canvas.addEventListener('pointercancel', onPointerEnd);
+    // Pointer Events
+    canvas.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      pDown(e.clientX, e.clientY, e.pointerId);
+
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch (err) {
+        // alcuni browser possono non supportarla bene
+      }
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (pointer.down && e.pointerId === pointer.id) {
+        pMove(e.clientX, e.clientY);
+      }
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      if (pointer.down && e.pointerId === pointer.id) {
+        pUp(e.clientX, e.clientY);
+      }
+    });
+
+    window.addEventListener('pointercancel', (e) => {
+      if (pointer.down && e.pointerId === pointer.id) {
+        pUp(e.clientX, e.clientY);
+      }
+    });
+
+    // Fallback per browser molto vecchi senza Pointer Events
+    if (!window.PointerEvent) {
+      canvas.addEventListener('touchstart', (e) => {
+        if (state !== 'play') return;
+        e.preventDefault();
+        const t = e.changedTouches[0];
+        pDown(t.clientX, t.clientY, 'touch');
+      }, { passive: false });
+
+      window.addEventListener('touchmove', (e) => {
+        if (!pointer.down) return;
+        e.preventDefault();
+        const t = e.changedTouches[0];
+        pMove(t.clientX, t.clientY);
+      }, { passive: false });
+
+      window.addEventListener('touchend', (e) => {
+        if (!pointer.down) return;
+        const t = e.changedTouches[0];
+        pUp(t.clientX, t.clientY);
+      }, { passive: false });
+
+      window.addEventListener('touchcancel', (e) => {
+        if (!pointer.down) return;
+        const t = e.changedTouches[0];
+        pUp(t.clientX, t.clientY);
+      }, { passive: false });
+    }
+
+    // Blocca scroll/zoom durante il gioco
+    document.addEventListener('touchmove', (e) => {
+      if (state === 'play') {
+        e.preventDefault();
+      }
+    }, { passive: false });
 
     // ------------------------------------------------------------
     // UPDATE
@@ -384,6 +485,10 @@
         time = 0;
         end('TEMPO FINITO');
         return;
+      }
+
+      if (takeoffCooldown > 0) {
+        takeoffCooldown -= dt;
       }
 
       // HOLD / VERRICELLO
@@ -409,15 +514,30 @@
       currentHold = holdActive;
 
       // TARGET
-      let tx = pointer.down ? pointer.targetX : heli.x;
-      let ty = pointer.down ? pointer.targetY : heli.y;
+      let tx;
+      let ty;
+
+      if (pointer.down) {
+        tx = pointer.targetX;
+        ty = pointer.targetY;
+      } else if (autoActive) {
+        tx = autoX;
+        ty = autoY;
+
+        if (Math.hypot(tx - heli.x, ty - heli.y) < 14) {
+          autoActive = false;
+        }
+      } else {
+        tx = heli.x;
+        ty = heli.y;
+      }
 
       const nearPad = Math.abs(heli.x - padX) < 90;
+      const wantsLow = ty > groundY - 125;
 
       // ASSIST ATTERRAGGIO
-      // Se sei vicino alla BASE e stai chiedendo una quota bassa,
-      // il gioco ti aiuta ad allinearti e scendere.
-      if (!landed && nearPad && ty > groundY - 115) {
+      // Solo se sei vicino alla base e stai chiedendo quota bassa.
+      if (!landed && nearPad && wantsLow && takeoffCooldown <= 0) {
         ty = landedY;
         tx = padX + (tx - padX) * 0.30;
       }
@@ -430,9 +550,11 @@
         heli.vy = 0;
         heli.y = landedY;
 
-        // Decollo se trascini verso l'alto
-        if (pointer.down && ty < landedY - 52) {
+        // Decollo con drag verso l'alto
+        if (pointer.down && ty < landedY - 24) {
           landed = false;
+          takeoffCooldown = 0.7;
+          heli.vy = -90;
           addMsg('DECOLLO');
         }
       } else {
@@ -462,17 +584,52 @@
         heli.x += heli.vx * dt;
         heli.y += heli.vy * dt;
 
-        heli.x = Math.max(30, Math.min(worldW - 30, heli.x));
-        heli.y = Math.max(64, Math.min(groundY - 18, heli.y));
+        // Bounds
+        if (heli.x < 30) {
+          heli.x = 30;
+          if (heli.vx < 0) heli.vx = 0;
+        }
+
+        if (heli.x > worldW - 30) {
+          heli.x = worldW - 30;
+          if (heli.vx > 0) heli.vx = 0;
+        }
+
+        if (heli.y < 64) {
+          heli.y = 64;
+          if (heli.vy < 0) heli.vy = 0;
+        }
+
+        if (heli.y > groundY - 18) {
+          heli.y = groundY - 18;
+          if (heli.vy > 0) heli.vy = 0;
+        }
 
         const overPadNow = Math.abs(heli.x - padX) < 90;
         const speedNow = Math.hypot(heli.vx, heli.vy);
 
-        if (overPadNow && Math.abs(heli.y - landedY) < 14 && speedNow < 55) {
+        const intentY = pointer.down
+          ? pointer.targetY
+          : (autoActive ? autoY : heli.y);
+
+        const wantsLanding = intentY > groundY - 125;
+
+        // ATTERRAGGIO
+        // Richiede cooldown finito, intenzione di stare basso,
+        // vicinanza al pad e velocità contenuta.
+        if (
+          overPadNow &&
+          takeoffCooldown <= 0 &&
+          wantsLanding &&
+          Math.abs(heli.y - landedY) < 18 &&
+          speedNow < 65 &&
+          heli.vy > -20
+        ) {
           landed = true;
           heli.y = landedY;
           heli.vx = 0;
           heli.vy = 0;
+          autoActive = false;
           addMsg('ATTERRATO');
         }
       }
@@ -663,7 +820,15 @@
         ctx.lineWidth = 1;
       }
 
-      // Target
+      // Auto target
+      if (autoActive) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.beginPath();
+        ctx.arc(autoX, autoY, 12, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Drag target
       if (pointer.down) {
         ctx.strokeStyle = 'rgba(103,232,249,0.65)';
         ctx.beginPath();
@@ -749,6 +914,14 @@
         ctx.fillText('VERRICELLO', heli.x, heli.y - 58);
       }
 
+      // Landed hint
+      if (landed) {
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.font = 'bold 16px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText("TRASCINA VERSO L'ALTO OPPURE TOCCA", heli.x, heli.y - 84);
+      }
+
       ctx.restore();
 
       // HUD
@@ -813,7 +986,8 @@
 
       ctx.fillText(
         `v:${speed}px/s a:${accel} panic:${panic.toFixed(0)}% fuel:${fuel.toFixed(0)}% ` +
-        `hold:${currentHold ? 'ON' : 'off'} landed:${landed ? 'YES' : 'no'} roof:${roofPeople} fps:${fps.toFixed(0)}`,
+        `ptr:${pointer.down ? 'DOWN' : 'up'} auto:${autoActive ? 'ON' : 'off'} ` +
+        `landed:${landed ? 'YES' : 'no'} roof:${roofPeople} fps:${fps.toFixed(0)}`,
         12,
         viewH - 12
       );
