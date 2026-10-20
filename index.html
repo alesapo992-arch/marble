@@ -1,3148 +1,2127 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#79bd52">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="Border Collie Herding v2 - porta il gregge nel recinto, attraversa il fiume, sopravvivi alle anatre.">
-<title>Border Collie Herding · v2</title>
-<style>
-  /* ------------------------------------------------------------------
-     BASE / RESET — mobile first, nessuno scroll, nessuno zoom
-  ------------------------------------------------------------------ */
-  *, *::before, *::after { box-sizing: border-box; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Rory &amp; I 5 Cuccioli</title>
 
-  html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;
-    background: #2f5d33;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif;
-    color: #fff;
-    -webkit-user-select: none;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-    -webkit-text-size-adjust: 100%;
-    touch-action: none;
-    overscroll-behavior: none;
-  }
+  <meta property="og:title" content="Rory & I 5 Cuccioli" />
+  <meta property="og:description" content="Guida l’elicottero di Rory e salva 5 cuccioli da aquile e lupi." />
+  <meta name="twitter:card" content="summary_large_image" />
 
-  body { position: fixed; inset: 0; }
+  <style>
+    * { box-sizing: border-box; }
 
-  /* ------------------------------------------------------------------
-     STAGE — il gioco vive qui; su desktop mantiene un formato verticale
-  ------------------------------------------------------------------ */
-  #stage {
-    position: fixed;
-    left: 0; top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background: #79bd52;
-    contain: layout paint;
-    touch-action: none;
-  }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at top, #2b4f72 0%, #101820 55%, #070b10 100%);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: #fff;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+    }
 
-  #game {
-    position: absolute;
-    left: 0; top: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
-    touch-action: none;
-    -webkit-user-drag: none;
-  }
+    #stage {
+      position: relative;
+      width: min(100vw, 960px);
+      aspect-ratio: 960 / 600;
+      touch-action: none;
+    }
 
-  .hidden { display: none !important; }
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 18px;
+      background: #87ceeb;
+      box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+    }
 
-  /* ------------------------------------------------------------------
-     HUD
-  ------------------------------------------------------------------ */
-  #hud {
-    position: absolute;
-    left: 0; right: 0;
-    top: calc(env(safe-area-inset-top, 0px) + 10px);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 6px;
-    padding: 0 calc(env(safe-area-inset-right, 0px) + 10px) 0 calc(env(safe-area-inset-left, 0px) + 10px);
-    pointer-events: none;
-    z-index: 6;
-    transition: opacity .3s ease;
-  }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 24px;
+      text-align: center;
+      background: rgba(8, 12, 20, 0.74);
+      backdrop-filter: blur(7px);
+      border-radius: 18px;
+    }
 
-  .hud-group { display: flex; align-items: center; gap: 6px; }
+    .hidden { display: none !important; }
 
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    height: 34px;
-    padding: 0 11px;
-    border-radius: 999px;
-    background: rgba(22, 38, 26, .55);
-    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .16);
-    font-size: 14px;
-    font-weight: 800;
-    letter-spacing: .3px;
-    font-variant-numeric: tabular-nums;
-    color: #fff;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, .35);
-    white-space: nowrap;
-  }
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 5vw, 54px);
+      line-height: 1;
+      letter-spacing: -0.02em;
+      text-shadow: 0 6px 20px rgba(0,0,0,0.35);
+    }
 
-  .pill .ic { font-size: 13px; opacity: .95; }
-  .pill.best { color: #ffe694; }
-  .pill.pulse { animation: pillPulse .45s ease; }
+    h2 {
+      margin: 0;
+      font-size: clamp(24px, 4.4vw, 44px);
+      line-height: 1.05;
+    }
 
-  @keyframes pillPulse {
-    0%   { transform: scale(1); }
-    35%  { transform: scale(1.12); background: rgba(255, 214, 90, .55); }
-    100% { transform: scale(1); }
-  }
+    p {
+      margin: 0;
+      max-width: 700px;
+      line-height: 1.35;
+      font-size: clamp(14px, 2.2vw, 18px);
+      color: rgba(255,255,255,0.92);
+    }
 
-  .icon-btn {
-    width: 34px; height: 34px;
-    display: grid;
-    place-items: center;
-    border-radius: 50%;
-    border: 0;
-    background: rgba(22, 38, 26, .55);
-    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .16);
-    color: #fff;
-    font-size: 16px;
-    line-height: 1;
-    padding: 0;
-    pointer-events: auto;
-    touch-action: manipulation;
-    transition: transform .12s ease, background .12s ease;
-  }
+    ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 6px;
+      font-size: clamp(13px, 2vw, 16px);
+      color: rgba(255,255,255,0.88);
+    }
 
-  .icon-btn:active { transform: scale(.9); background: rgba(22, 38, 26, .8); }
-  .icon-btn.off { opacity: .45; }
-  .icon-btn svg { display: block; pointer-events: none; }
-  .icon-btn .ic-off { display: none; }
-  .icon-btn.off .ic-on { display: none; }
-  .icon-btn.off .ic-off { display: block; }
+    li strong { color: #ffd166; }
 
-  /* ------------------------------------------------------------------
-     CHIP ABBAIO (cooldown)
-  ------------------------------------------------------------------ */
-  #barkChip {
-    position: absolute;
-    left: calc(env(safe-area-inset-left, 0px) + 12px);
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    z-index: 6;
-    display: grid;
-    place-items: center;
-    pointer-events: none;
-    background: rgba(22, 38, 26, .42);
-    transition: transform .15s ease;
-    --p: 100;
-  }
+    .main-btn,
+    .secondary-btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 14px 24px;
+      font-weight: 900;
+      font-size: clamp(15px, 2.4vw, 20px);
+      cursor: pointer;
+      color: #fff;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.28);
+      transition: transform 0.12s ease, filter 0.12s ease;
+      touch-action: manipulation;
+    }
 
-  #barkChip .ring {
-    position: absolute;
-    inset: -3px;
-    border-radius: 50%;
-    background: conic-gradient(#ffd84a calc(var(--p) * 1%), rgba(255, 255, 255, .18) 0);
-    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
-    mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
-  }
+    .main-btn {
+      background: linear-gradient(135deg, #e74c3c, #b5462d);
+    }
 
-  #barkChip .chip-icon {
-    font-size: 22px;
-    filter: saturate(1.05);
-  }
+    .secondary-btn {
+      background: linear-gradient(135deg, #3498db, #2471a3);
+    }
 
-  #barkChip.ready { transform: scale(1); }
-  #barkChip.punch { animation: chipPunch .3s ease; }
+    .main-btn:active,
+    .secondary-btn:active {
+      transform: scale(0.96);
+      filter: brightness(1.08);
+    }
 
-  @keyframes chipPunch {
-    0% { transform: scale(1); }
-    40% { transform: scale(1.18); }
-    100% { transform: scale(1); }
-  }
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
 
-  /* ------------------------------------------------------------------
-     TOASTS
-  ------------------------------------------------------------------ */
-  #toasts {
-    position: absolute;
-    left: 50%;
-    top: calc(env(safe-area-inset-top, 0px) + 58px);
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    z-index: 7;
-    pointer-events: none;
-    width: min(92%, 360px);
-  }
+    #controls {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 14px;
+      z-index: 5;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 18px;
+      pointer-events: none;
+    }
 
-  .toast {
-    padding: 9px 16px;
-    border-radius: 999px;
-    background: rgba(255, 250, 235, .96);
-    color: #33291c;
-    font-size: 14px;
-    font-weight: 800;
-    letter-spacing: .2px;
-    box-shadow: 0 6px 0 rgba(44, 32, 18, .18), 0 10px 22px rgba(0, 0, 0, .2);
-    animation: toastIn .32s cubic-bezier(.2, 1.5, .5, 1), toastOut .4s ease 1.75s forwards;
-    text-align: center;
-    max-width: 100%;
-  }
+    .ctrl {
+      pointer-events: auto;
+      width: clamp(74px, 18vw, 106px);
+      height: clamp(74px, 18vw, 106px);
+      border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.72);
+      background: rgba(0,0,0,0.34);
+      color: #fff;
+      font-weight: 900;
+      font-size: clamp(12px, 2.6vw, 16px);
+      line-height: 1.05;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      touch-action: none;
+      user-select: none;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+      transition: transform 0.1s ease, background 0.1s ease;
+    }
 
-  .toast.rebel { background: #ffe0e8; color: #8c1f3d; }
-  .toast.duck  { background: #e6f4ff; color: #1d5182; }
+    .ctrl:active {
+      transform: scale(0.94);
+      background: rgba(255,255,255,0.18);
+    }
 
-  @keyframes toastIn {
-    0%   { transform: translateY(-14px) scale(.85); opacity: 0; }
-    100% { transform: translateY(0) scale(1); opacity: 1; }
-  }
-  @keyframes toastOut {
-    to { transform: translateY(-8px) scale(.96); opacity: 0; }
-  }
+    #fireBtn { background: rgba(192, 57, 43, 0.68); }
+    #slingBtn { background: rgba(41, 128, 185, 0.62); }
 
-  /* ------------------------------------------------------------------
-     SCHERMATE (start / end)
-  ------------------------------------------------------------------ */
-  .screen {
-    position: absolute;
-    inset: 0;
-    z-index: 20;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
-    background: radial-gradient(120% 90% at 50% 0%, rgba(28, 56, 34, .55), rgba(12, 26, 16, .82));
-    animation: screenIn .28s ease;
-  }
-
-  @keyframes screenIn { from { opacity: 0; } to { opacity: 1; } }
-
-  .card {
-    width: 100%;
-    max-width: 340px;
-    max-height: 100%;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding: 20px 18px 18px;
-    border-radius: 26px;
-    background: linear-gradient(180deg, #fffdf6 0%, #fdf0d8 100%);
-    color: #33291c;
-    text-align: center;
-    box-shadow: 0 10px 0 rgba(38, 26, 12, .22), 0 24px 50px rgba(0, 0, 0, .38);
-    border: 3px solid #fff;
-  }
-
-  .eyebrow {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 900;
-    letter-spacing: 1.4px;
-    text-transform: uppercase;
-    color: #4e8f3a;
-    background: #e7f6d6;
-    padding: 5px 11px;
-    border-radius: 999px;
-    margin-bottom: 10px;
-  }
-
-  .card h1 {
-    margin: 0 0 8px;
-    font-size: clamp(26px, 8.4vw, 32px);
-    line-height: 1.02;
-    letter-spacing: .5px;
-    font-weight: 900;
-    color: #2c2318;
-  }
-
-  .card h2 {
-    margin: 0 0 6px;
-    font-size: clamp(22px, 7vw, 27px);
-    line-height: 1.1;
-    font-weight: 900;
-    color: #2c2318;
-  }
-
-  .lead {
-    margin: 0 0 12px;
-    font-size: 14px;
-    line-height: 1.42;
-    color: #6a5a44;
-    font-weight: 600;
-  }
-
-  .how {
-    list-style: none;
-    margin: 0 0 16px;
-    padding: 0;
-    text-align: left;
-    display: grid;
-    gap: 8px;
-    font-size: 13.5px;
-    line-height: 1.35;
-    color: #5a4a36;
-  }
-
-  .how li {
-    display: flex;
-    gap: 9px;
-    align-items: flex-start;
-    background: #fff8ea;
-    border-radius: 14px;
-    padding: 9px 11px;
-    box-shadow: inset 0 0 0 1.5px rgba(120, 96, 56, .12);
-  }
-
-  .how li b { color: #2c2318; }
-  .how .em { font-size: 16px; line-height: 1.1; }
-
-  .primary {
-    width: 100%;
-    border: 0;
-    border-radius: 18px;
-    padding: 15px 18px;
-    font-size: 18px;
-    font-weight: 900;
-    letter-spacing: .6px;
-    color: #fff;
-    background: linear-gradient(180deg, #4ecb5f 0%, #34a844 100%);
-    box-shadow: 0 5px 0 #247a31, 0 10px 20px rgba(36, 122, 49, .3);
-    touch-action: manipulation;
-    transition: transform .1s ease, box-shadow .1s ease;
-    font-family: inherit;
-  }
-
-  .primary:active {
-    transform: translateY(4px);
-    box-shadow: 0 1px 0 #247a31, 0 6px 12px rgba(36, 122, 49, .3);
-  }
-
-  .foot {
-    margin-top: 12px;
-    font-size: 12px;
-    font-weight: 700;
-    color: #8a7a62;
-    line-height: 1.4;
-  }
-
-  .stars {
-    display: flex;
-    justify-content: center;
-    gap: 6px;
-    margin-bottom: 6px;
-    font-size: 34px;
-    line-height: 1;
-    color: #e6dcc6;
-  }
-
-  .stars .on {
-    color: #ffc72c;
-    text-shadow: 0 3px 0 #d99a00, 0 0 18px rgba(255, 199, 44, .6);
-    animation: starPop .45s cubic-bezier(.2, 1.7, .5, 1) backwards;
-  }
-
-  .stars .on:nth-child(2) { animation-delay: .1s; }
-  .stars .on:nth-child(3) { animation-delay: .2s; }
-
-  @keyframes starPop {
-    0%   { transform: scale(0) rotate(-40deg); }
-    100% { transform: scale(1) rotate(0); }
-  }
-
-  .stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin: 14px 0 16px;
-  }
-
-  .stat {
-    background: #fff8ea;
-    border-radius: 14px;
-    padding: 9px 8px;
-    box-shadow: inset 0 0 0 1.5px rgba(120, 96, 56, .12);
-  }
-
-  .stat .k {
-    display: block;
-    font-size: 10.5px;
-    font-weight: 800;
-    letter-spacing: .7px;
-    text-transform: uppercase;
-    color: #9a8668;
-    margin-bottom: 2px;
-  }
-
-  .stat .v {
-    display: block;
-    font-size: 17px;
-    font-weight: 900;
-    color: #2c2318;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .stat.wide { grid-column: 1 / -1; }
-  .stat.gold .v { color: #b8860b; }
-
-  /* Tap hint che appare nei primi secondi di gioco */
-  #hint {
-    position: absolute;
-    left: 50%;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
-    transform: translateX(-50%);
-    z-index: 5;
-    padding: 8px 14px;
-    border-radius: 999px;
-    background: rgba(22, 38, 26, .55);
-    font-size: 13px;
-    font-weight: 700;
-    color: #fff;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity .5s ease;
-    white-space: nowrap;
-  }
-
-  #hint.show { opacity: 1; }
-
-  @media (prefers-reduced-motion: reduce) {
-    .toast, .stars .on, #barkChip.punch, .pill.pulse { animation: none !important; }
-  }
-</style>
+    .small {
+      font-size: clamp(12px, 1.8vw, 14px);
+      color: rgba(255,255,255,0.72);
+    }
+  </style>
 </head>
 <body>
-<div id="stage">
-  <canvas id="game" aria-label="Campo di gioco"></canvas>
+  <div id="stage">
+    <canvas id="game" width="960" height="600"></canvas>
 
-  <div id="hud">
-    <div class="hud-group">
-      <div class="pill" id="pillTime"><span class="ic">⏱</span><span id="hudTime">0:00</span></div>
-      <div class="pill" id="pillCount"><span class="ic">🐑</span><span id="hudCount">0/8</span></div>
-    </div>
-    <div class="hud-group">
-      <div class="pill best" id="pillBest"><span class="ic">★</span><span id="hudBest">--</span></div>
-      <button id="btnSound" class="icon-btn" aria-label="Attiva o disattiva l'audio">
-        <svg class="ic-on" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.2 8.6a4.8 4.8 0 0 1 0 6.8"/><path d="M18 6.2a8.2 8.2 0 0 1 0 11.6"/></svg>
-        <svg class="ic-off" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9.5 4.5 5"/><path d="m20.5 9.5-4.5 5"/></svg>
-      </button>
-      <button id="btnRestart" class="icon-btn" aria-label="Ricomincia il livello">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 1 1-2.7-6.2"/><path d="M20.5 3.5v4.2h-4.2"/></svg>
-      </button>
-    </div>
-  </div>
-
-  <div id="barkChip">
-    <div class="ring"></div>
-    <div class="chip-icon">🐶</div>
-  </div>
-
-  <div id="toasts"></div>
-  <div id="hint">Disegna col dito: il cane segue la linea</div>
-
-  <div id="startScreen" class="screen">
-    <div class="card">
-      <div class="eyebrow">v2 · fiume, anatre e pecore matte</div>
-      <h1>BORDER COLLIE<br>HERDING</h1>
-      <p class="lead">Otto pecore, un fiume, quattro anatre permalose.<br>E un cane che sa il fatto suo.</p>
-      <ul class="how">
-        <li><span class="em">✏️</span><span><b>Disegna</b> col dito: il Border Collie segue la linea, anche quando togli il dito.</span></li>
-        <li><span class="em">🐾</span><span><b>Tocca e rilascia</b>: abbaio con onda sonora e piccolo morso alle caviglie.</span></li>
-        <li><span class="em">🏡</span><span><b>Obiettivo</b>: tutte le pecore nel recinto. Anche quelle matte.</span></li>
+    <div id="startScreen" class="overlay">
+      <h1>🚁 RORY &amp; I 5 CUCCIOLI</h1>
+      <p>
+        Rory, border collie rossa e bianca, pilota l’elicottero di soccorso.
+        Recupera i <strong>5 cuccioli</strong> dispersi e riportali nella <strong>cuccia</strong>,
+        proteggendoli da <strong>aquile</strong> e <strong>lupi</strong>.
+      </p>
+      <ul>
+        <li><strong>TRASCINA</strong> = muovi l’elicottero</li>
+        <li><strong>RILASCIA</strong> = hover</li>
+        <li><strong>TAP</strong> = vai lì / decolla se sei a terra</li>
+        <li><strong>VERRICELLO</strong> o tasto <strong>S</strong> = aggancia cucciolo</li>
+        <li><strong>FUOCO</strong> o <strong>SPAZIO</strong> = spara palline</li>
       </ul>
-      <button id="btnStart" class="primary">INIZIA ▶</button>
-      <div class="foot" id="startFoot">Sessione breve · un dito · niente scroll</div>
+      <button id="startBtn" class="main-btn">DECOLLA ▶</button>
+      <div class="small">Versione playtest · single-file</div>
+    </div>
+
+    <div id="winScreen" class="overlay hidden">
+      <h2 id="winTitle">RORY HA SALVATO TUTTI! 🎉</h2>
+      <p id="winStats"></p>
+      <div class="btn-row">
+        <button id="againBtn" class="main-btn">RIPROVA ↻</button>
+        <button id="shareBtn" class="secondary-btn">CONDIVIDI 📣</button>
+      </div>
+    </div>
+
+    <div id="controls">
+      <button id="slingBtn" class="ctrl">🪢<br>VERRICELLO</button>
+      <button id="fireBtn" class="ctrl">💥<br>FUOCO</button>
     </div>
   </div>
 
-  <div id="endScreen" class="screen hidden">
-    <div class="card">
-      <div class="stars" id="endStars"></div>
-      <h2 id="endTitle">GREGGE RADUNATO!</h2>
-      <p class="lead" id="endSub">Le pecore sono nel recinto.</p>
-      <div class="stats" id="endStats"></div>
-      <button id="btnRetry" class="primary">RIPROVA</button>
-      <div class="foot" id="endFoot"></div>
-    </div>
-  </div>
-</div>
+  <script>
+    (() => {
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
 
-<script>
-'use strict';
-/* ==================================================================
-   BORDER COLLIE HERDING — v2
-   Canvas 2D · JS vanilla · un solo dito · nessuna dipendenza
+      const W = canvas.width;
+      const H = canvas.height;
+      const PI2 = Math.PI * 2;
 
-   Struttura del file:
-     1. CONFIG              — tutte le costanti di calibrazione
-     2. UTIL                — matematica, random, formattazione
-     3. AUDIO               — sintesi procedurale WebAudio (nessun asset)
-     4. VIEW / LAYOUT       — stage, campo, recinto, fiume, ponte
-     5. SCENOGRAFIA         — sfondo statico pre-renderizzato (1 volta)
-     6. ENTITÀ              — dog, sheep, ducks, particelle, path
-     7. UPDATE              — simulazione (flocking, acqua, recinto)
-     8. DRAW                — rendering
-     9. GAME LOOP / INPUT   — state machine, pointer events, UI
-   ================================================================== */
+      const GROUND_Y = H - 70;
+      const HELI_GROUND_Y = GROUND_Y - 28;
 
-/* ------------------------------------------------------------------
-   1. CONFIG — calibra qui, non nel resto del codice
------------------------------------------------------------------- */
-const CONFIG = {
+      const DOGHOUSE = {
+        x: 55,
+        y: GROUND_Y - 95,
+        w: 185,
+        h: 95
+      };
 
-  /* --- CANE ------------------------------------------------------ */
-  dog: {
-    speed: 300,          // px/s velocità massima
-    steer: 11,           // reattività dello steering (più alto = più secco)
-    lookahead: 48,       // px di percorso guardati avanti (curve morbide)
-    arriveSlow: 6.5,     // rallentamento sull'ultimo punto
-    minPointDist: 12,    // distanza minima tra punti del percorso
-    pruneRadius: 22,     // il percorso dietro al cane viene eliminato
-    turnSmooth: 9,       // smoothing della rotazione del corpo
-    waterSlow: 0.34,     // moltiplicatore velocità in acqua profonda
-    fordSlow: 0.78,      // moltiplicatore velocità nel guado
-    dustRate: 0.055,     // intervallo particelle polvere (s)
-  },
+      const BUILDINGS = [
+        { x: 205, y: 410, w: 95 },
+        { x: 385, y: 330, w: 95 },
+        { x: 565, y: 380, w: 95 },
+        { x: 735, y: 290, w: 95 },
+        { x: 470, y: 465, w: 90 }
+      ];
 
-  /* --- ABBAIO ---------------------------------------------------- */
-  bark: {
-    radius: 195,         // raggio d'azione
-    force: 1250,         // spinta sulle pecore
-    cooldown: 0.75,      // secondi tra due abbai
-    duration: 0.42,      // durata dell'onda sonora attiva
-    duckRadius: 210,     // raggio entro cui le anatre si offendono
-    duckStartleMin: 1.2,
-    duckStartleMax: 2.0,
-  },
+      const PUPPY_DATA = [
+        { name: "Bibi", fur: "#fff7f0", patch: "#b5462d" },
+        { name: "Nina", fur: "#fff1e6", patch: "#8b3a24" },
+        { name: "Tom",  fur: "#f8f8f8", patch: "#c0563a" },
+        { name: "Luna", fur: "#fffaf5", patch: "#9e3e2a" },
+        { name: "Gio",  fur: "#fff3ea", patch: "#b5462d" }
+      ];
 
-  /* --- PECORE ---------------------------------------------------- */
-  sheep: {
-    count: 8,
-    radius: 13,
-    maxSpeed: 112,
-    panicSpeed: 180,
-    perception: 82,
-    separationDist: 33,
-    cohesion: 1.30,
-    alignment: 2.00,
-    separation: 240,
-    fleeRadius: 118,
-    fleeForce: 640,
-    wander: 26,
-    wanderSpeed: 1.1,
-    waterAvoid: 1050,    // repulsione dalla riva (prima di bagnarsi)
-    waterEscape: 900,    // spinta per tornare sulla riva se è già in acqua
-    bankFunnel: 320,     // spinta lungo la riva verso il passaggio
-    waterSlow: 0.50,     // velocità in acqua
-    penPull: 1.55,       // attrazione verso il cancello (quando spinta)
-    penRange: 190,       // distanza entro cui il recinto "chiama"
-    friction: 2.2,
-  },
+      const startScreen = document.getElementById("startScreen");
+      const winScreen = document.getElementById("winScreen");
+      const startBtn = document.getElementById("startBtn");
+      const againBtn = document.getElementById("againBtn");
+      const shareBtn = document.getElementById("shareBtn");
+      const winTitle = document.getElementById("winTitle");
+      const winStats = document.getElementById("winStats");
+      const slingBtn = document.getElementById("slingBtn");
+      const fireBtn = document.getElementById("fireBtn");
 
-  /* --- PECORE RIBELLI -------------------------------------------- */
-  rebel: {
-    minCount: 1,         // SEMPRE almeno una
-    maxCount: 2,
-    cohesion: 0.30,      // quasi ignorano il gregge
-    alignment: 0.28,
-    separation: 0.95,
-    wander: 2.5,
-    speedMult: 1.10,
-    barkMult: 1.65,      // reagiscono molto all'abbaio
-    grazeMin: 1.1,       // secondi di "bruco e me ne frego"
-    grazeMax: 3.4,
-    dartSpeed: 235,
-    dartChance: 0.9,     // probabilità/10s di scatto improvviso
-  },
+      let running = false;
+      let won = false;
+      let time = 0;
+      let lastTimestamp = 0;
 
-  /* --- ANATRE ---------------------------------------------------- */
-  ducks: {
-    count: 4,
-    speed: 30,
-    bobAmp: 6,
-    startleBoost: 3.2,
-    wakeRate: 0.14,
-  },
+      let rescued = 0;
+      let panic = 0;
+      let heat = 0;
+      let overheat = false;
+      let lastFire = -1;
+      let lastAttach = -1;
 
-  /* --- FIUME / PONTE --------------------------------------------- */
-  water: {
-    bridgeHalf: 0.105,   // metà larghezza ponte (frazione della viewport)
-    fordHalf: 0.078,
-    waveAmp: 7,
-  },
+      const stats = {
+        maxPanic: 0,
+        drops: 0,
+        enemiesStunned: 0,
+        shots: 0
+      };
 
-  /* --- RECINTO --------------------------------------------------- */
-  pen: {
-    widthRatio: 0.70,
-    maxWidth: 300,
-    heightRatio: 0.165,
-    gateRatio: 0.30,     // frazione della larghezza recinto
-  },
+      const heli = {
+        x: 140,
+        y: HELI_GROUND_Y,
+        vx: 0,
+        vy: 0,
+        ax: 0,
+        ay: 0,
+        angle: 0,
+        aimAngle: 0,
+        rotor: 0,
+        jerk: 0,
+        onGround: true,
+        target: null,
+        carrying: [],
+        maxCarry: 5
+      };
 
-  /* --- STELLE / PUNTEGGIO ---------------------------------------- */
-  stars: {
-    three: 55,           // secondi per 3 stelle
-    two: 90,             // secondi per 2 stelle
-    maxWasted: 4,        // abbai a vuoto concessi per le 3 stelle
-  },
+      const input = {
+        pointerDown: false,
+        pointerId: null,
+        pointerX: 0,
+        pointerY: 0,
+        startX: 0,
+        startY: 0,
+        startT: 0,
+        moved: false,
+        sling: false,
+        fire: false
+      };
 
-  /* --- FEEL ------------------------------------------------------ */
-  feel: {
-    shakeOnPen: 2.4,
-    shakeDecay: 12,
-    maxParticles: 180,
-  },
-};
+      let puppies = [];
+      let eagles = [];
+      let wolves = [];
+      let bullets = [];
+      let particles = [];
 
-/* ------------------------------------------------------------------
-   2. UTIL
------------------------------------------------------------------- */
-const TAU = Math.PI * 2;
-const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-const lerp = (a, b, t) => a + (b - a) * t;
-const rand = (a = 0, b = 1) => a + Math.random() * (b - a);
-const randInt = (a, b) => Math.floor(rand(a, b + 1));
-const dist2 = (x1, y1, x2, y2) => { const dx = x2 - x1, dy = y2 - y1; return dx * dx + dy * dy; };
-const dist = (x1, y1, x2, y2) => Math.sqrt(dist2(x1, y1, x2, y2));
-const smoothing = (cur, target, rate, dt) => cur + (target - cur) * (1 - Math.exp(-rate * dt));
+      let audioCtx = null;
 
-function angleLerp(a, b, t) {
-  let d = ((b - a + Math.PI) % TAU + TAU) % TAU - Math.PI;
-  return a + d * t;
-}
-
-function formatTime(sec) {
-  const s = Math.max(0, sec);
-  const m = Math.floor(s / 60);
-  const r = Math.floor(s % 60);
-  return m + ':' + String(r).padStart(2, '0');
-}
-
-// RNG deterministico: lo sfondo non cambia forma a ogni resize
-function mulberry32(a) {
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-// rect arrotondato (compatibile anche con Safari vecchi)
-function rr(g, x, y, w, h, r) {
-  const rad = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
-  g.beginPath();
-  g.moveTo(x + rad, y);
-  g.lineTo(x + w - rad, y);
-  g.quadraticCurveTo(x + w, y, x + w, y + rad);
-  g.lineTo(x + w, y + h - rad);
-  g.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
-  g.lineTo(x + rad, y + h);
-  g.quadraticCurveTo(x, y + h, x, y + h - rad);
-  g.lineTo(x, y + rad);
-  g.quadraticCurveTo(x, y, x + rad, y);
-  g.closePath();
-}
-
-function ellipse(g, x, y, rx, ry, rot) {
-  g.beginPath();
-  g.ellipse(x, y, Math.abs(rx), Math.abs(ry), rot || 0, 0, TAU);
-}
-
-/* ------------------------------------------------------------------
-   3. AUDIO — sintesi procedurale, zero asset
------------------------------------------------------------------- */
-const Sound = (() => {
-  let ac = null, master = null, noiseBuf = null;
-  let enabled = true;
-  let lastBleat = 0;
-
-  function ensure() {
-    try {
-      if (!ac) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return null;
-        ac = new AC();
-        master = ac.createGain();
-        master.gain.value = 0.55;
-        master.connect(ac.destination);
-
-        // buffer di rumore riusato (bark, splash, vento)
-        const len = Math.floor(ac.sampleRate * 0.5);
-        noiseBuf = ac.createBuffer(1, len, ac.sampleRate);
-        const d = noiseBuf.getChannelData(0);
-        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      // ---------- utils ----------
+      function clamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
       }
-      if (ac.state === 'suspended') ac.resume();
-      return ac;
-    } catch (e) { return null; }
-  }
 
-  function unlock() { ensure(); }
-
-  function now() { return ac ? ac.currentTime : 0; }
-
-  function tone(o) {
-    if (!enabled) return;
-    const a = ensure(); if (!a) return;
-    try {
-      const t0 = now() + (o.delay || 0);
-      const osc = a.createOscillator();
-      const g = a.createGain();
-      osc.type = o.type || 'sine';
-      osc.frequency.setValueAtTime(o.f1, t0);
-      if (o.f2 && o.f2 !== o.f1) osc.frequency.exponentialRampToValueAtTime(Math.max(20, o.f2), t0 + o.dur);
-      const v = (o.vol || 0.2);
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(v, t0 + (o.attack || 0.012));
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + o.dur);
-      osc.connect(g); g.connect(master);
-      osc.start(t0); osc.stop(t0 + o.dur + 0.02);
-    } catch (e) { /* ignora */ }
-  }
-
-  function noise(o) {
-    if (!enabled) return;
-    const a = ensure(); if (!a) return;
-    try {
-      const t0 = now() + (o.delay || 0);
-      const src = a.createBufferSource();
-      src.buffer = noiseBuf;
-      const f = a.createBiquadFilter();
-      f.type = o.filter || 'bandpass';
-      f.frequency.setValueAtTime(o.freq || 1200, t0);
-      f.Q.value = o.q || 1;
-      const g = a.createGain();
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(o.vol || 0.15, t0 + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + o.dur);
-      src.connect(f); f.connect(g); g.connect(master);
-      src.start(t0); src.stop(t0 + o.dur + 0.02);
-    } catch (e) { /* ignora */ }
-  }
-
-  return {
-    unlock,
-    get enabled() { return enabled; },
-    set enabled(v) { enabled = v; if (v) ensure(); },
-
-    bark() {
-      tone({ f1: 460, f2: 170, dur: 0.16, type: 'sawtooth', vol: 0.26 });
-      tone({ f1: 300, f2: 120, dur: 0.2, type: 'square', vol: 0.1, delay: 0.02 });
-      noise({ freq: 1400, dur: 0.14, vol: 0.16, filter: 'bandpass', q: 0.8 });
-    },
-
-    bleat(pitch) {
-      const t = performance.now();
-      if (t - lastBleat < 110) return;
-      lastBleat = t;
-      const f = 330 * (pitch || 1);
-      tone({ f1: f, f2: f * 0.82, dur: 0.28, type: 'sawtooth', vol: 0.055 });
-      tone({ f1: f * 1.5, f2: f * 1.2, dur: 0.22, type: 'triangle', vol: 0.035 });
-    },
-
-    quack() {
-      tone({ f1: 420, f2: 250, dur: 0.11, type: 'square', vol: 0.07 });
-      noise({ freq: 900, dur: 0.1, vol: 0.05 });
-    },
-
-    splash() {
-      noise({ freq: 2200, dur: 0.22, vol: 0.09, filter: 'highpass', q: 0.6 });
-      tone({ f1: 220, f2: 90, dur: 0.1, type: 'sine', vol: 0.05 });
-    },
-
-    sparkle() {
-      tone({ f1: 880, f2: 1320, dur: 0.14, type: 'sine', vol: 0.09 });
-      tone({ f1: 1320, f2: 1760, dur: 0.16, type: 'sine', vol: 0.06, delay: 0.07 });
-    },
-
-    success() {
-      const notes = [523.25, 659.25, 783.99, 1046.5];
-      notes.forEach((f, i) => tone({ f1: f, f2: f, dur: 0.32, type: 'triangle', vol: 0.12, delay: i * 0.09 }));
-    },
-
-    click() { tone({ f1: 300, f2: 420, dur: 0.06, type: 'sine', vol: 0.06 }); },
-  };
-})();
-
-/* ------------------------------------------------------------------
-   4. VIEW / LAYOUT
------------------------------------------------------------------- */
-const stageEl = document.getElementById('stage');
-const cv = document.getElementById('game');
-const ctx = cv.getContext('2d', { alpha: false });
-
-let W = 390, H = 844;      // dimensioni logiche della stage (CSS px)
-let S = 1;                 // fattore di scala per gli sprite
-let DPR = 1;
-
-const view = {
-  fieldTop: 62,
-  pen: { x: 0, y: 0, w: 0, h: 0, gateX: 0, gateW: 0, bottom: 0 },
-  river: { y: 0, half: 0, top: 0, bottom: 0 },
-  bridge: { x: 0, half: 0, top: 0, bottom: 0 },
-  ford: { x: 0, half: 0, top: 0, bottom: 0 },
-};
-
-/* Profilo del fiume: due sinusoidi sommate = rive organiche ma deterministiche */
-function riverTopAt(x) {
-  return view.river.y - view.river.half
-    + Math.sin(x * 0.0122 + 1.1) * CONFIG.water.waveAmp
-    + Math.sin(x * 0.0261) * 3.2;
-}
-function riverBottomAt(x) {
-  return view.river.y + view.river.half
-    + Math.sin(x * 0.0109 - 0.7) * CONFIG.water.waveAmp
-    + Math.sin(x * 0.0233 + 2.2) * 3.2;
-}
-
-/* Acqua "vera" (profonda) vs passaggi */
-function inBridge(x) { return Math.abs(x - view.bridge.x) < view.bridge.half; }
-function inFord(x) { return Math.abs(x - view.ford.x) < view.ford.half; }
-function isWaterBand(x, y, pad) {
-  const p = pad || 0;
-  return y > riverTopAt(x) - p && y < riverBottomAt(x) + p;
-}
-function isDeepWater(x, y) {
-  return isWaterBand(x, y, 0) && !inBridge(x) && !inFord(x);
-}
-function isCrossing(x) { return inBridge(x) || inFord(x); }
-
-function nearestCrossingX(x) {
-  return Math.abs(x - view.bridge.x) < Math.abs(x - view.ford.x) ? view.bridge.x : view.ford.x;
-}
-
-function resizeCanvas() {
-  const vw = Math.max(240, window.innerWidth);
-  const vh = Math.max(360, window.innerHeight);
-
-  let w = vw, h = vh;
-  // Desktop / tablet orizzontale: stage in formato verticale centrata
-  if (vw > 620) {
-    w = Math.min(vw, Math.max(360, Math.min(480, vh * 0.62)));
-    h = Math.min(vh, 1000);
-  }
-
-  stageEl.style.width = w + 'px';
-  stageEl.style.height = h + 'px';
-  stageEl.style.left = Math.round((vw - w) / 2) + 'px';
-  stageEl.style.top = Math.round((vh - h) / 2) + 'px';
-
-  W = Math.round(w);
-  H = Math.round(h);
-  S = clamp(Math.min(W / 390, H / 800), 0.74, 1.30);
-
-  DPR = Math.min(2, window.devicePixelRatio || 1);
-  cv.width = Math.round(W * DPR);
-  cv.height = Math.round(H * DPR);
-  cv.style.width = W + 'px';
-  cv.style.height = H + 'px';
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-
-  buildLayout();
-  renderScenery();
-  rebuildDecorForNewSize();
-}
-
-/* Dopo un resize: ricostruisce acqua/decorazioni e riporta gli animali nel campo */
-function rebuildDecorForNewSize() {
-  buildWaterDecor();
-  for (const d of ducks) {
-    d.x = clamp(d.x, 24, W - 24);
-    d.y = clamp(d.y, riverTopAt(d.x) + 16, riverBottomAt(d.x) - 16);
-    d.depth = clamp((d.y - riverTopAt(d.x) - 16) / Math.max(1, riverBottomAt(d.x) - riverTopAt(d.x) - 32), 0.15, 0.85);
-  }
-  for (const s of sheep) {
-    s.x = clamp(s.x, 20, W - 20);
-    s.y = clamp(s.y, view.fieldTop + 26, H - 18);
-  }
-  if (sheep.length) buildPenSpots(CONFIG.sheep.count);
-}
-
-function buildLayout() {
-  const v = view;
-  v.W = W; v.H = H; v.S = S;
-
-  // margine superiore sotto l'HUD
-  v.fieldTop = Math.round(clamp(H * 0.075, 54, 76));
-
-  // --- recinto: appoggiato al muro alto del campo ---
-  const penW = Math.min(W * CONFIG.pen.widthRatio, CONFIG.pen.maxWidth);
-  const penH = clamp(H * CONFIG.pen.heightRatio, 92, 152);
-  v.pen.w = penW;
-  v.pen.h = penH;
-  v.pen.x = (W - penW) / 2;
-  v.pen.y = v.fieldTop;
-  v.pen.bottom = v.pen.y + penH;
-  v.pen.gateW = clamp(penW * CONFIG.pen.gateRatio, 44, 76);
-  v.pen.gateX = W / 2;
-
-  // --- fiume ---
-  v.river.y = Math.round(H * 0.585);
-  v.river.half = clamp(H * 0.062, 26, 58);
-  v.river.top = v.river.y - v.river.half;
-  v.river.bottom = v.river.y + v.river.half;
-
-  // --- ponte e guado ---
-  v.bridge.half = clamp(W * CONFIG.water.bridgeHalf, 30, 52);
-  v.bridge.x = Math.round(W * 0.30);
-  v.bridge.top = riverTopAt(v.bridge.x) - 14;
-  v.bridge.bottom = riverBottomAt(v.bridge.x) + 14;
-
-  v.ford.half = clamp(W * CONFIG.water.fordHalf, 22, 38);
-  v.ford.x = Math.round(W * 0.72);
-  v.ford.top = riverTopAt(v.ford.x) - 8;
-  v.ford.bottom = riverBottomAt(v.ford.x) + 8;
-}
-/* ------------------------------------------------------------------
-   5. SCENOGRAFIA — pre-renderizzata una sola volta per resize
-      (erba, fiume, ponte, guado, recinto, siepi, vignettatura)
------------------------------------------------------------------- */
-const bgCanvas = document.createElement('canvas');
-let bg = bgCanvas.getContext('2d');
-
-let ripples = [];
-let waterLines = [];
-let gateGlow = 0;
-
-function renderScenery() {
-  bgCanvas.width = Math.round(W * DPR);
-  bgCanvas.height = Math.round(H * DPR);
-  bg = bgCanvas.getContext('2d');
-  bg.setTransform(DPR, 0, 0, DPR, 0, 0);
-  bg.clearRect(0, 0, W, H);
-
-  drawGrass(bg);
-  drawRiverBase(bg);
-  drawBridgeDeck(bg);
-  drawFord(bg);
-  drawPen(bg);
-  drawHedge(bg);
-  drawVignette(bg);
-
-  buildWaterDecor();
-}
-
-/* --- prato ------------------------------------------------------- */
-
-/* macchia morbida: gradiente radiale ellittico, creato una volta per resize */
-function softBlob(g, x, y, rx, ry, rgba) {
-  g.save();
-  g.translate(x, y);
-  g.scale(rx, ry);
-  const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1);
-  gr.addColorStop(0, rgba);
-  gr.addColorStop(0.5, rgba);
-  gr.addColorStop(1, rgba.replace(/[\d.]+\)$/, '0)'));
-  g.fillStyle = gr;
-  g.beginPath(); g.arc(0, 0, 1, 0, TAU); g.fill();
-  g.restore();
-}
-
-/* punto dentro il recinto? (per non sporcarlo con erba e fiori) */
-function insidePen(x, y, pad) {
-  const p = view.pen;
-  return x > p.x - pad && x < p.x + p.w + pad && y > p.y - pad && y < p.bottom + pad;
-}
-
-function drawGrass(g) {
-  const grd = g.createLinearGradient(0, 0, 0, H);
-  grd.addColorStop(0, '#94d368');
-  grd.addColorStop(0.45, '#87c95d');
-  grd.addColorStop(1, '#72b64c');
-  g.fillStyle = grd;
-  g.fillRect(0, 0, W, H);
-
-  const rnd = mulberry32(20261020);
-
-  // chiazze morbide di verde (gradienti creati una sola volta)
-  for (let i = 0; i < 22; i++) {
-    const x = rnd() * W, y = rnd() * H;
-    const rx = 70 + rnd() * 130, ry = 50 + rnd() * 90;
-    const light = rnd() > 0.5;
-    softBlob(g, x, y, rx, ry, light ? 'rgba(198,236,150,0.26)' : 'rgba(54,108,40,0.16)');
-  }
-
-  // chiazze di terra battuta (sentieri delle pecore)
-  const dirt = [
-    [W * 0.5, view.pen.bottom + 34, W * 0.17, 52],
-    [view.bridge.x, (view.bridge.top + view.bridge.bottom) / 2, 40, H * 0.16],
-    [W * 0.5, H * 0.84, W * 0.20, 50],
-    [W * 0.2, H * 0.9, 40, 26],
-    [W * 0.8, H * 0.74, 34, 22],
-  ];
-  for (const [x, y, rx, ry] of dirt) {
-    softBlob(g, x, y, rx, ry, 'rgba(203,178,124,0.30)');
-  }
-
-  // ciuffi d'erba: piccoli e fitti, non devono sembrare frecce
-  g.lineCap = 'round';
-  for (let i = 0; i < 260; i++) {
-    const x = 6 + rnd() * (W - 12);
-    const y = 20 + rnd() * (H - 20);
-    if (isWaterBand(x, y, 6)) continue;
-    if (insidePen(x, y, 14)) continue;
-    const s = 0.55 + rnd() * 0.45;
-    const dark = rnd() > 0.5;
-    g.strokeStyle = dark ? 'rgba(66,124,44,0.42)' : 'rgba(200,238,152,0.45)';
-    g.lineWidth = 1.2;
-    g.beginPath();
-    g.moveTo(x, y);
-    g.quadraticCurveTo(x - 1.6 * s, y - 3.4 * s, x - 3.4 * s, y - 5.6 * s);
-    g.moveTo(x, y);
-    g.quadraticCurveTo(x, y - 4 * s, x + 0.8 * s, y - 7 * s);
-    g.moveTo(x, y);
-    g.quadraticCurveTo(x + 2 * s, y - 3 * s, x + 3.6 * s, y - 5 * s);
-    g.stroke();
-  }
-
-  // fiorellini
-  for (let i = 0; i < 26; i++) {
-    const x = 10 + rnd() * (W - 20);
-    const y = view.fieldTop + 20 + rnd() * (H - view.fieldTop - 30);
-    if (isWaterBand(x, y, 8)) continue;
-    const pal = ['#ffffff', '#fff2a8', '#ffd6e6', '#dff0ff'][Math.floor(rnd() * 4)];
-    g.fillStyle = pal;
-    for (let k = 0; k < 4; k++) {
-      const a = (k / 4) * TAU;
-      ellipse(g, x + Math.cos(a) * 2.1, y + Math.sin(a) * 2.1, 1.9, 1.9, 0); g.fill();
-    }
-    g.fillStyle = '#ffcb3d';
-    ellipse(g, x, y, 1.5, 1.5, 0); g.fill();
-  }
-
-  // sassolini
-  for (let i = 0; i < 14; i++) {
-    const x = 8 + rnd() * (W - 16);
-    const y = view.fieldTop + 30 + rnd() * (H - view.fieldTop - 40);
-    if (isWaterBand(x, y, 10)) continue;
-    g.fillStyle = 'rgba(60,90,50,0.12)';
-    ellipse(g, x + 1, y + 1.5, 3.4, 2.4, 0); g.fill();
-    g.fillStyle = '#cfd9c4';
-    ellipse(g, x, y, 3, 2.1, 0); g.fill();
-  }
-}
-
-/* --- fiume: rive + acqua ----------------------------------------- */
-function traceRiver(g, pad) {
-  const p = pad || 0;
-  g.beginPath();
-  const step = Math.max(8, Math.round(W / 34));
-  g.moveTo(-8, riverTopAt(-8) - p);
-  for (let x = -8; x <= W + 8; x += step) g.lineTo(x, riverTopAt(x) - p);
-  for (let x = W + 8; x >= -8; x -= step) g.lineTo(x, riverBottomAt(x) + p);
-  g.closePath();
-}
-
-function drawRiverBase(g) {
-  const v = view;
-
-  // riva sabbiosa (leggermente più larga dell'acqua)
-  g.save();
-  g.fillStyle = 'rgba(72,120,50,0.16)';
-  traceRiver(g, 14); g.fill();
-  g.fillStyle = '#d9c79b';
-  traceRiver(g, 9); g.fill();
-  g.fillStyle = '#cbb787';
-  traceRiver(g, 4); g.fill();
-  g.restore();
-
-  // acqua
-  const grd = g.createLinearGradient(0, v.river.y - v.river.half, 0, v.river.y + v.river.half);
-  grd.addColorStop(0, '#6cc7ea');
-  grd.addColorStop(0.35, '#46a9d8');
-  grd.addColorStop(1, '#2c7fb5');
-  g.fillStyle = grd;
-  traceRiver(g, 0); g.fill();
-
-  // bordo bagnato scuro vicino alle rive
-  g.save();
-  traceRiver(g, 0); g.clip();
-  g.strokeStyle = 'rgba(20,80,110,0.20)';
-  g.lineWidth = 6;
-  g.beginPath();
-  const step = Math.max(8, Math.round(W / 34));
-  g.moveTo(-8, riverTopAt(-8) + 3);
-  for (let x = -8; x <= W + 8; x += step) g.lineTo(x, riverTopAt(x) + 3);
-  g.stroke();
-  g.beginPath();
-  g.moveTo(-8, riverBottomAt(-8) - 3);
-  for (let x = -8; x <= W + 8; x += step) g.lineTo(x, riverBottomAt(x) - 3);
-  g.stroke();
-
-  // riflessi chiari
-  g.strokeStyle = 'rgba(255,255,255,0.22)';
-  g.lineWidth = 2.2;
-  g.lineCap = 'round';
-  const rnd = mulberry32(7);
-  for (let i = 0; i < 16; i++) {
-    const x = rnd() * W;
-    const y = v.river.y - v.river.half * 0.6 + rnd() * v.river.half * 1.2;
-    const len = 10 + rnd() * 26;
-    g.beginPath(); g.moveTo(x, y);
-    g.quadraticCurveTo(x + len * 0.5, y - 1.6, x + len, y);
-    g.stroke();
-  }
-  g.restore();
-
-  // sassi sulle rive
-  const rnd2 = mulberry32(31);
-  for (let i = 0; i < 20; i++) {
-    const x = 10 + rnd2() * (W - 20);
-    const top = rnd2() > 0.5;
-    const y = (top ? riverTopAt(x) - 5 : riverBottomAt(x) + 5) + (rnd2() - 0.5) * 6;
-    const r = 3 + rnd2() * 4;
-    g.fillStyle = 'rgba(40,60,30,0.18)';
-    ellipse(g, x + 1, y + 2, r, r * 0.62, 0); g.fill();
-    g.fillStyle = rnd2() > 0.5 ? '#c8c4b0' : '#b3ad9a';
-    ellipse(g, x, y, r, r * 0.62, 0); g.fill();
-    g.fillStyle = 'rgba(255,255,255,0.4)';
-    ellipse(g, x - r * 0.25, y - r * 0.2, r * 0.4, r * 0.24, 0); g.fill();
-  }
-
-  // canne / erba alta sulle rive
-  g.lineCap = 'round';
-  for (let i = 0; i < 18; i++) {
-    const x = 12 + rnd2() * (W - 24);
-    const top = rnd2() > 0.5;
-    const baseY = top ? riverTopAt(x) - 6 : riverBottomAt(x) + 7;
-    if (inBridge(x) || inFord(x)) continue;
-    const h = 8 + rnd2() * 10;
-    g.strokeStyle = 'rgba(72,130,50,0.75)';
-    g.lineWidth = 1.8;
-    for (let k = -1; k <= 1; k++) {
-      g.beginPath();
-      g.moveTo(x + k * 2.5, baseY);
-      g.quadraticCurveTo(x + k * 2.5 + h * 0.3, baseY - h * 0.6, x + k * 2.5 + h * 0.55, baseY - h);
-      g.stroke();
-    }
-  }
-}
-
-/* --- ponte: parte dietro agli animali ---------------------------- */
-function drawBridgeDeck(g) {
-  const b = view.bridge;
-  const x = b.x - b.half;
-  const w = b.half * 2;
-  const y = b.top;
-  const h = b.bottom - b.top;
-
-  // ombra sull'acqua
-  g.fillStyle = 'rgba(10,50,70,0.22)';
-  rr(g, x + 5, y + 8, w, h, 8); g.fill();
-
-  // travi portanti
-  g.fillStyle = '#7c4e24';
-  rr(g, x - 3, y + 4, w + 6, h - 8, 7); g.fill();
-
-  // impalcato
-  g.fillStyle = '#c98f52';
-  rr(g, x, y, w, h, 6); g.fill();
-
-  // assi
-  g.strokeStyle = 'rgba(112,66,26,0.45)';
-  g.lineWidth = 1.6;
-  for (let py = y + 7; py < y + h - 3; py += 10) {
-    g.beginPath(); g.moveTo(x + 2, py); g.lineTo(x + w - 2, py); g.stroke();
-  }
-
-  // luce sull'impalcato
-  const grd = g.createLinearGradient(x, 0, x + w, 0);
-  grd.addColorStop(0, 'rgba(255,220,170,0.25)');
-  grd.addColorStop(0.5, 'rgba(255,235,190,0.12)');
-  grd.addColorStop(1, 'rgba(60,30,10,0.14)');
-  g.fillStyle = grd;
-  rr(g, x, y, w, h, 6); g.fill();
-
-  // chiodi
-  g.fillStyle = 'rgba(70,44,18,0.5)';
-  for (let py = y + 7; py < y + h - 3; py += 10) {
-    ellipse(g, x + 6, py, 1.3, 1.3, 0); g.fill();
-    ellipse(g, x + w - 6, py, 1.3, 1.3, 0); g.fill();
-  }
-}
-
-/* --- guado: acqua bassa + sassi --------------------------------- */
-function drawFord(g) {
-  const f = view.ford;
-  const x = f.x - f.half;
-  const y = f.top;
-  const h = f.bottom - f.top;
-
-  g.save();
-  // fondale basso e sabbioso: si capisce che qui si può passare
-  const fg = g.createLinearGradient(x, y, x + f.half * 2, y);
-  fg.addColorStop(0, 'rgba(196,206,180,0.30)');
-  fg.addColorStop(0.5, 'rgba(168,214,224,0.55)');
-  fg.addColorStop(1, 'rgba(196,206,180,0.30)');
-  g.fillStyle = fg;
-  rr(g, x, y, f.half * 2, h, 14); g.fill();
-  g.strokeStyle = 'rgba(255,255,255,0.45)';
-  g.lineWidth = 2;
-  g.beginPath(); g.moveTo(x + 4, y + 10); g.lineTo(x + 4, y + h - 10); g.stroke();
-  g.beginPath(); g.moveTo(x + f.half * 2 - 4, y + 10); g.lineTo(x + f.half * 2 - 4, y + h - 10); g.stroke();
-
-  // sassi emergenti (percorso)
-  const rnd = mulberry32(55);
-  for (let i = 0; i < 7; i++) {
-    const cx = f.x + (rnd() - 0.5) * (f.half * 1.25);
-    const cy = y + 8 + (i / 6) * (h - 16);
-    const r = 5 + rnd() * 3.5;
-    // schiuma attorno al sasso
-    g.fillStyle = 'rgba(255,255,255,0.30)';
-    ellipse(g, cx, cy + 1.5, r * 1.5, r * 1.0, 0); g.fill();
-    g.fillStyle = 'rgba(18,60,80,0.22)';
-    ellipse(g, cx + 1, cy + 2, r, r * 0.7, 0); g.fill();
-    g.fillStyle = '#b8b3a2';
-    ellipse(g, cx, cy, r, r * 0.7, 0); g.fill();
-    g.fillStyle = '#d5d0c0';
-    ellipse(g, cx - r * 0.2, cy - r * 0.18, r * 0.6, r * 0.36, 0); g.fill();
-  }
-  g.restore();
-}
-
-/* --- recinto ----------------------------------------------------- */
-function fencePost(g, x, y, h) {
-  const w = 8;
-  g.fillStyle = 'rgba(40,60,25,0.18)';
-  rr(g, x - w / 2 + 1.5, y - h / 2 + 2, w, h, 3); g.fill();
-  g.fillStyle = '#b3773c';
-  rr(g, x - w / 2, y - h / 2, w, h, 3); g.fill();
-  g.strokeStyle = '#7d4a1f';
-  g.lineWidth = 1.2;
-  rr(g, x - w / 2, y - h / 2, w, h, 3); g.stroke();
-  g.fillStyle = '#dda56b';
-  rr(g, x - w / 2 + 1.6, y - h / 2 + 2.2, w - 3.2, 3.6, 1.6); g.fill();
-}
-
-function railH(g, x1, x2, y) {
-  g.lineCap = 'round';
-  g.strokeStyle = '#8a5a2b';
-  g.lineWidth = 7;
-  g.beginPath(); g.moveTo(x1, y); g.lineTo(x2, y); g.stroke();
-  g.strokeStyle = '#cf9653';
-  g.lineWidth = 4;
-  g.beginPath(); g.moveTo(x1, y - 1.4); g.lineTo(x2, y - 1.4); g.stroke();
-}
-
-function railV(g, x, y1, y2) {
-  g.lineCap = 'round';
-  g.strokeStyle = '#8a5a2b';
-  g.lineWidth = 7;
-  g.beginPath(); g.moveTo(x, y1); g.lineTo(x, y2); g.stroke();
-  g.strokeStyle = '#cf9653';
-  g.lineWidth = 4;
-  g.beginPath(); g.moveTo(x - 1.4, y1); g.lineTo(x - 1.4, y2); g.stroke();
-}
-
-function drawPen(g) {
-  const p = view.pen;
-
-  // ombra del recinto sul prato
-  g.fillStyle = 'rgba(30,55,22,0.13)';
-  rr(g, p.x - 5, p.y + 3, p.w + 10, p.h + 10, 18); g.fill();
-
-  // paglia
-  const grd = g.createLinearGradient(0, p.y, 0, p.bottom);
-  grd.addColorStop(0, 'rgba(247,236,190,0.90)');
-  grd.addColorStop(1, '#eedb9f');
-  g.fillStyle = grd;
-  rr(g, p.x, p.y, p.w, p.h, 14); g.fill();
-
-  // texture paglia
-  const rnd = mulberry32(99);
-  g.strokeStyle = 'rgba(198,168,104,0.5)';
-  g.lineWidth = 1.5;
-  g.lineCap = 'round';
-  for (let i = 0; i < 80; i++) {
-    const x = p.x + 8 + rnd() * (p.w - 16);
-    const y = p.y + 8 + rnd() * (p.h - 12);
-    const a = (rnd() - 0.5) * 1.3;
-    const l = 3 + rnd() * 6;
-    g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
-  }
-
-  // frecce sul terreno: "entra qui"
-  g.strokeStyle = 'rgba(150,116,54,0.35)';
-  g.lineWidth = 3.2;
-  g.lineCap = 'round';
-  for (let i = 0; i < 3; i++) {
-    const yy = p.bottom - 30 - i * 15;
-    g.beginPath();
-    g.moveTo(p.gateX - 11, yy + 6); g.lineTo(p.gateX, yy); g.lineTo(p.gateX + 11, yy + 6);
-    g.stroke();
-  }
-
-  // bordo interno
-  g.strokeStyle = 'rgba(140,104,44,0.22)';
-  g.lineWidth = 2;
-  rr(g, p.x + 4, p.y + 4, p.w - 8, p.h - 8, 12); g.stroke();
-
-  // --- staccionate ---
-  const step = 36;
-  const inset = 5;
-
-  // rails: alto, lati, basso (spezzato dal cancello)
-  railH(g, p.x + 4, p.x + p.w - 4, p.y + inset);
-  railV(g, p.x + inset, p.y + 4, p.bottom - 4);
-  railV(g, p.x + p.w - inset, p.y + 4, p.bottom - 4);
-
-  const gl = p.gateX - p.gateW / 2;
-  const gr = p.gateX + p.gateW / 2;
-
-  // sentiero di terra battuta davanti al cancello
-  const gp = g.createLinearGradient(0, p.bottom - 4, 0, p.bottom + 96);
-  gp.addColorStop(0, 'rgba(206,180,124,0.45)');
-  gp.addColorStop(1, 'rgba(206,180,124,0)');
-  g.fillStyle = gp;
-  g.beginPath();
-  g.moveTo(gl - 2, p.bottom - 4);
-  g.lineTo(gr + 2, p.bottom - 4);
-  g.lineTo(gr + 24, p.bottom + 96);
-  g.lineTo(gl - 24, p.bottom + 96);
-  g.closePath(); g.fill();
-
-  railH(g, p.x + 4, gl - 3, p.bottom - inset);
-  railH(g, gr + 3, p.x + p.w - 4, p.bottom - inset);
-
-  // paletti
-  for (let x = p.x + 4; x <= p.x + p.w - 4; x += step) {
-    fencePost(g, x, p.y + inset, 15);
-  }
-  for (let y = p.y + 16; y <= p.bottom - 4; y += step) {
-    fencePost(g, p.x + inset, y, 15);
-    fencePost(g, p.x + p.w - inset, y, 15);
-  }
-  for (let x = p.x + 4; x <= p.x + p.w - 4; x += step) {
-    if (Math.abs(x - p.gateX) < p.gateW / 2) continue;
-    fencePost(g, x, p.bottom - inset, 15);
-  }
-  // montanti del cancello: più grossi, così l'apertura si legge subito
-  fencePost(g, gl, p.bottom - inset, 23);
-  fencePost(g, gr, p.bottom - inset, 23);
-
-  // due ante aperte verso l'esterno
-  drawGateLeaf(g, gl, p.bottom - inset, -1);
-  drawGateLeaf(g, gr, p.bottom - inset, 1);
-}
-
-/* anta del cancello, aperta verso l'esterno */
-function drawGateLeaf(g, x, y, dir) {
-  const len = 28;
-  g.save();
-  g.translate(x, y);
-  g.rotate(dir * 0.62);
-  g.fillStyle = 'rgba(40,25,10,0.20)';
-  rr(g, -2, 3, 5, len, 2.5); g.fill();
-  g.fillStyle = '#c98f52';
-  rr(g, -2.5, 0, 5, len, 2.5); g.fill();
-  g.strokeStyle = '#7d4a1f'; g.lineWidth = 1.2;
-  rr(g, -2.5, 0, 5, len, 2.5); g.stroke();
-  g.strokeStyle = '#e6b47c'; g.lineWidth = 2;
-  for (const yy of [7, 15, 23]) {
-    g.beginPath(); g.moveTo(-3.5, yy); g.lineTo(3.5, yy); g.stroke();
-  }
-  g.restore();
-}
-
-/* --- siepi sul muro alto del campo ------------------------------- */
-function drawHedge(g) {
-  const p = view.pen;
-  const segs = [[-10, p.x - 6], [p.x + p.w + 6, W + 10]];
-  const rnd = mulberry32(12);
-
-  for (const [x1, x2] of segs) {
-    if (x2 - x1 < 10) continue;
-    g.fillStyle = 'rgba(28,60,24,0.20)';
-    rr(g, x1, view.fieldTop - 6, x2 - x1, 22, 10); g.fill();
-    for (let x = x1; x < x2; x += 15) {
-      const r = 9 + rnd() * 5;
-      g.fillStyle = rnd() > 0.5 ? '#4f8f3a' : '#447f33';
-      ellipse(g, x + rnd() * 6, view.fieldTop + 1 + (rnd() - 0.5) * 4, r, r * 0.9, 0); g.fill();
-      g.fillStyle = 'rgba(150,205,110,0.45)';
-      ellipse(g, x + 2, view.fieldTop - 3, r * 0.45, r * 0.32, 0); g.fill();
-    }
-  }
-}
-
-function drawVignette(g) {
-  const grd = g.createRadialGradient(W * 0.5, H * 0.45, Math.min(W, H) * 0.28, W * 0.5, H * 0.5, Math.max(W, H) * 0.78);
-  grd.addColorStop(0, 'rgba(0,0,0,0)');
-  grd.addColorStop(1, 'rgba(20,48,18,0.22)');
-  g.fillStyle = grd;
-  g.fillRect(0, 0, W, H);
-}
-
-/* --- decor animato dell'acqua (leggero) -------------------------- */
-function buildWaterDecor() {
-  ripples = [];
-  for (let i = 0; i < 15; i++) {
-    ripples.push({
-      x: rand(0, W),
-      off: rand(-0.85, 0.85),
-      r: rand(5, 18),
-      sp: rand(9, 22),
-      ph: rand(0, TAU),
-      a: rand(0.08, 0.2),
-    });
-  }
-  waterLines = [];
-  for (let i = 0; i < 3; i++) {
-    waterLines.push({ off: (i - 1) * 0.42, sp: rand(0.5, 1.1), ph: rand(0, TAU), a: 0.10 + i * 0.02 });
-  }
-}
-/* ------------------------------------------------------------------
-   6. ENTITÀ
------------------------------------------------------------------- */
-
-/* --- storage sicuro (Safari privato non lancia) ------------------ */
-const Store = {
-  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
-};
-const BEST_KEY = 'bch2.best';
-const SOUND_KEY = 'bch2.sound';
-
-const game = {
-  state: 'menu',        // menu | playing | won
-  clock: 0,
-  time: 0,
-  barks: 0,
-  wasted: 0,
-  pennedNormal: 0,
-  pennedRebel: 0,
-  best: null,
-  ducksStartled: 0,
-  shake: 0,
-  endTimer: 0,
-  hintT: 0,
-  hintShown: false,
-  lastPenAt: -99,
-};
-
-const dog = {
-  x: 0, y: 0, vx: 0, vy: 0,
-  angle: -Math.PI / 2,
-  barkT: 0,
-  barkCd: 0,
-  speed: 0,
-  dustT: 0,
-  wet: false,
-  anim: 0,
-  tail: 0,
-};
-
-let sheep = [];
-let ducks = [];
-let path = [];
-let penSpots = [];
-
-/* --- particelle: pool fisso, zero allocazioni nel loop ----------- */
-const particles = [];
-for (let i = 0; i < CONFIG.feel.maxParticles; i++) {
-  particles.push({ alive: false, type: 'dust', x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 1, size: 1, rot: 0, spin: 0, color: '#fff' });
-}
-
-function spawnParticle(type, x, y, vx, vy, life, size, color, spin) {
-  for (let i = 0; i < particles.length; i++) {
-    const p = particles[i];
-    if (!p.alive) {
-      p.alive = true;
-      p.type = type;
-      p.x = x; p.y = y;
-      p.vx = vx; p.vy = vy;
-      p.life = life; p.max = life;
-      p.size = size || 3;
-      p.color = color || '#fff';
-      p.rot = rand(0, TAU);
-      p.spin = spin || rand(-4, 4);
-      return;
-    }
-  }
-}
-
-function clearParticles() {
-  for (const p of particles) p.alive = false;
-}
-
-/* --- factory ----------------------------------------------------- */
-function makeSheep(x, y, rebel) {
-  const P = CONFIG.sheep, R = CONFIG.rebel;
-  const s = {
-    x, y, vx: 0, vy: 0,
-    angle: rand(0, TAU),
-    r: P.radius,
-    rebel: !!rebel,
-    state: 'wander',
-    panic: 0,
-    wetT: 0,
-    wet: false,
-    wanderA: rand(0, TAU),
-    wanderSp: rand(0.7, 1.5),
-    bleatT: rand(1.5, 7),
-    decisionT: rand(0.6, 2.2),
-    grazeT: 0,
-    dartT: 0,
-    dartA: 0,
-    penned: false,
-    spot: null,
-    bounce: 0,
-    bob: rand(0, TAU),
-    seed: Math.random(),
-    // parametri individuali (le ribelli variano di partita in partita)
-    p: {
-      coh: P.cohesion,
-      ali: P.alignment,
-      sep: P.separation,
-      wander: P.wander,
-      speed: 1,
-      grazeBias: 0,
-    },
-  };
-
-  if (rebel) {
-    const v = () => rand(0.8, 1.2);
-    s.p.coh = R.cohesion * v();
-    s.p.ali = R.alignment * v();
-    s.p.sep = P.separation * R.separation * v();
-    s.p.wander = P.wander * R.wander * v();
-    s.p.speed = R.speedMult * rand(0.95, 1.08);
-    s.p.grazeBias = rand(0, 1); // 0 = scattante, 1 = brucatrice
-  }
-  return s;
-}
-
-function makeDuck() {
-  const x = rand(W * 0.12, W * 0.88);
-  return {
-    x,
-    y: rand(riverTopAt(x) + 20, riverBottomAt(x) - 20),
-    dir: Math.random() < 0.5 ? -1 : 1,
-    speed: rand(0.7, 1.3) * CONFIG.ducks.speed,
-    depth: rand(0.15, 0.85),
-    ph: rand(0, TAU),
-    state: 'calm',
-    timer: 0,
-    flap: 0,
-    wakeT: 0,
-    seed: rand(0, 10),
-  };
-}
-
-/* --- posizioni ordinate nel recinto ------------------------------ */
-function buildPenSpots(n) {
-  const p = view.pen;
-  penSpots = [];
-  const cols = Math.ceil(n / 2);
-  const rows = 2;
-  const padX = Math.max(26, p.w * 0.12);
-  const padTop = Math.max(24, p.h * 0.26);
-  const usableW = p.w - padX * 2;
-  const usableH = p.h - padTop - 22;
-  for (let i = 0; i < n; i++) {
-    const c = i % cols;
-    const r = Math.floor(i / cols);
-    penSpots.push({
-      x: p.x + padX + (cols > 1 ? (usableW * c) / (cols - 1) : usableW / 2),
-      y: p.y + padTop + (rows > 1 ? (usableH * r) / (rows - 1) : usableH * 0.5),
-    });
-  }
-}
-
-/* --- nuova partita ---------------------------------------------- */
-function newLevel() {
-  path.length = 0;
-  clearParticles();
-  clearToasts();
-
-  game.time = 0;
-  game.barks = 0;
-  game.wasted = 0;
-  game.pennedNormal = 0;
-  game.pennedRebel = 0;
-  game.ducksStartled = 0;
-  game.shake = 0;
-  game.endTimer = 0;
-  game.hintT = 0;
-  game.lastPenAt = -99;
-
-  // cane in basso al centro
-  dog.x = W * 0.5;
-  dog.y = Math.min(H - 46, H * 0.9);
-  dog.vx = dog.vy = 0;
-  dog.angle = -Math.PI / 2;
-  dog.barkT = 0;
-  dog.barkCd = 0;
-  dog.dustT = 0;
-  dog.wet = false;
-
-  // gregge: cluster sotto il fiume
-  const n = CONFIG.sheep.count;
-  const rebels = randInt(CONFIG.rebel.minCount, CONFIG.rebel.maxCount);
-  const idx = [];
-  for (let i = 0; i < n; i++) idx.push(i);
-  // shuffle
-  for (let i = idx.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [idx[i], idx[j]] = [idx[j], idx[i]];
-  }
-  const rebelSet = new Set(idx.slice(0, rebels));
-
-  sheep = [];
-  const cx = W * 0.5;
-  const cy = clamp(H * 0.795, view.river.y + view.river.half + 70, H - 60);
-  for (let i = 0; i < n; i++) {
-    const a = rand(0, TAU);
-    const r = rand(16, Math.min(W * 0.3, 95));
-    let x = clamp(cx + Math.cos(a) * r, 26, W - 26);
-    let y = clamp(cy + Math.sin(a) * r * 0.75, view.river.y + view.river.half + 40, H - 34);
-    sheep.push(makeSheep(x, y, rebelSet.has(i)));
-  }
-
-  // anatre
-  ducks = [];
-  for (let i = 0; i < CONFIG.ducks.count; i++) ducks.push(makeDuck());
-
-  buildPenSpots(n);
-
-  // piccola attesa prima di far comparire lo stato "playing"
-  game.state = 'playing';
-  game.hintT = 6;
-  updateHud(true);
-}
-
-/* --- HUD --------------------------------------------------------- */
-const el = {
-  hudTime: document.getElementById('hudTime'),
-  hudCount: document.getElementById('hudCount'),
-  hudBest: document.getElementById('hudBest'),
-  pillTime: document.getElementById('pillTime'),
-  pillCount: document.getElementById('pillCount'),
-  chip: document.getElementById('barkChip'),
-  toasts: document.getElementById('toasts'),
-  hint: document.getElementById('hint'),
-};
-
-function updateHud(force) {
-  const penned = game.pennedNormal + game.pennedRebel;
-  const total = sheep.length || CONFIG.sheep.count;
-  el.hudTime.textContent = formatTime(game.time);
-  el.hudCount.textContent = penned + '/' + total;
-  el.hudBest.textContent = game.best ? formatTime(game.best) : '--';
-
-  if (force) {
-    el.hudBest.parentElement.classList.remove('hidden');
-  }
-}
-
-function pulsePill(node) {
-  node.classList.remove('pulse');
-  void node.offsetWidth;
-  node.classList.add('pulse');
-}
-
-function toast(text, kind) {
-  const d = document.createElement('div');
-  d.className = 'toast' + (kind ? ' ' + kind : '');
-  d.textContent = text;
-  el.toasts.appendChild(d);
-  setTimeout(() => { if (d.parentNode) d.parentNode.removeChild(d); }, 2300);
-  while (el.toasts.children.length > 3) el.toasts.removeChild(el.toasts.firstChild);
-}
-
-function clearToasts() {
-  el.toasts.innerHTML = '';
-}
-
-/* ------------------------------------------------------------------
-   7. UPDATE
------------------------------------------------------------------- */
-
-/* --- percorso disegnato ------------------------------------------ */
-function addPathPoint(x, y) {
-  const last = path[path.length - 1];
-  if (last) {
-    const d = dist(last.x, last.y, x, y);
-    if (d < CONFIG.dog.minPointDist) return;
-  }
-  path.push({ x, y });
-  if (path.length > 170) path.shift();
-}
-
-function getPathTarget() {
-  if (path.length === 0) return null;
-  if (path.length === 1) return path[0];
-
-  let remaining = CONFIG.dog.lookahead;
-  for (let i = 0; i < path.length - 1; i++) {
-    const a = path[i], b = path[i + 1];
-    const d = dist(a.x, a.y, b.x, b.y);
-    if (d >= remaining) {
-      const t = remaining / d;
-      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-    }
-    remaining -= d;
-  }
-  const last = path[path.length - 1];
-  return { x: last.x, y: last.y };
-}
-
-/* --- cane -------------------------------------------------------- */
-function dogSpeedMult() {
-  if (isWaterBand(dog.x, dog.y, 0)) {
-    if (inBridge(dog.x)) return 1;
-    if (inFord(dog.x)) return CONFIG.dog.fordSlow;
-    return CONFIG.dog.waterSlow;
-  }
-  return 1;
-}
-
-function updateDog(dt) {
-  dog.barkT = Math.max(0, dog.barkT - dt);
-  dog.barkCd = Math.max(0, dog.barkCd - dt);
-
-  // consuma il percorso dietro al cane
-  while (path.length > 1 && dist(path[0].x, path[0].y, dog.x, dog.y) < CONFIG.dog.pruneRadius) {
-    path.shift();
-  }
-  if (path.length === 1 && dist(path[0].x, path[0].y, dog.x, dog.y) < 7) path.length = 0;
-
-  const target = getPathTarget();
-  let desX = 0, desY = 0;
-
-  if (target) {
-    const dx = target.x - dog.x;
-    const dy = target.y - dog.y;
-    const d = Math.hypot(dx, dy);
-    if (d > 0.6) {
-      const lastPoint = path.length <= 1;
-      const slow = lastPoint ? clamp(d / 22, 0.15, 1) : 1;
-      const spd = CONFIG.dog.speed * slow * dogSpeedMult() * (dog.wet ? 0.9 : 1);
-      desX = (dx / d) * spd;
-      desY = (dy / d) * spd;
-    }
-  }
-
-  const k = 1 - Math.exp(-CONFIG.dog.steer * dt);
-  dog.vx = lerp(dog.vx, desX, k);
-  dog.vy = lerp(dog.vy, desY, k);
-
-  dog.x += dog.vx * dt;
-  dog.y += dog.vy * dt;
-
-  // limiti del campo
-  dog.x = clamp(dog.x, 16, W - 16);
-  dog.y = clamp(dog.y, view.fieldTop + 14, H - 14);
-
-  dog.speed = Math.hypot(dog.vx, dog.vy);
-
-  if (dog.speed > 22) {
-    const targetAngle = Math.atan2(dog.vy, dog.vx);
-    dog.angle = angleLerp(dog.angle, targetAngle, 1 - Math.exp(-CONFIG.dog.turnSmooth * dt));
-  }
-  dog.anim += dt * (2 + dog.speed * 0.03);
-  dog.tail += dt * (5 + dog.speed * 0.02);
-
-  // acqua
-  const wetNow = isWaterBand(dog.x, dog.y, 0) && !inBridge(dog.x);
-  if (wetNow && !dog.wet) {
-    for (let i = 0; i < 7; i++) {
-      spawnParticle('splash', dog.x + rand(-6, 6), dog.y, rand(-60, 60), rand(-140, -50), rand(0.35, 0.6), rand(2, 4), '#dff2ff');
-    }
-    Sound.splash();
-  }
-  dog.wet = wetNow;
-
-  // polvere quando corre
-  if (dog.speed > 150 && !dog.wet) {
-    dog.dustT -= dt;
-    if (dog.dustT <= 0) {
-      dog.dustT = CONFIG.dog.dustRate;
-      const bx = dog.x - Math.cos(dog.angle) * 10;
-      const by = dog.y - Math.sin(dog.angle) * 10;
-      spawnParticle('dust', bx + rand(-3, 3), by + rand(-3, 3), rand(-24, 24), rand(-16, 6), rand(0.3, 0.55), rand(2.5, 5), '#e8dfc8');
-    }
-  }
-}
-
-/* --- abbaio ------------------------------------------------------ */
-function bark() {
-  if (game.state !== 'playing') return;
-  if (dog.barkCd > 0) return;
-
-  const C = CONFIG.bark;
-  dog.barkCd = C.cooldown;
-  dog.barkT = C.duration;
-  game.barks++;
-
-  let hit = 0;
-
-  // pecore
-  for (const s of sheep) {
-    if (s.penned) continue;
-    const d = Math.max(1, dist(s.x, s.y, dog.x, dog.y));
-    if (d > C.radius) continue;
-    const t = 1 - d / C.radius;
-    const mult = s.rebel ? CONFIG.rebel.barkMult : 1;
-    const nx = (s.x - dog.x) / d;
-    const ny = (s.y - dog.y) / d;
-
-    s.vx += nx * C.force * 0.12 * t * mult;
-    s.vy += ny * C.force * 0.12 * t * mult;
-    s.panic = Math.min(1, s.panic + 0.55 * t * mult);
-    if (s.rebel) { s.grazeT = 0; s.dartT = 0; }
-    s.state = 'panic';
-    hit++;
-    if (Math.random() < 0.25) Sound.bleat(s.rebel ? 1.2 : rand(0.85, 1.15));
-  }
-
-  if (hit === 0) game.wasted++;
-
-  // anatre
-  for (const dk of ducks) {
-    const d = dist(dk.x, dk.y, dog.x, dog.y);
-    if (d < C.duckRadius) startleDuck(dk, d);
-  }
-
-  // anello visivo + polvere
-  for (let i = 0; i < 6; i++) {
-    const a = rand(0, TAU);
-    spawnParticle('dust', dog.x + Math.cos(a) * 12, dog.y + Math.sin(a) * 8, Math.cos(a) * rand(40, 90), Math.sin(a) * rand(20, 50) - 30, rand(0.3, 0.5), rand(2, 4), '#f6efdc');
-  }
-
-  Sound.bark();
-  el.chip.classList.remove('punch');
-  void el.chip.offsetWidth;
-  el.chip.classList.add('punch');
-}
-
-/* --- pecore ------------------------------------------------------ */
-function updateSheep(dt) {
-  const P = CONFIG.sheep;
-  const penB = view.pen.bottom;
-  const pen = view.pen;
-
-  for (let i = 0; i < sheep.length; i++) {
-    const s = sheep[i];
-
-    if (s.penned) {
-      s.bounce = Math.max(0, s.bounce - dt * 1.7);
-      s.angle = smoothing(s.angle, Math.PI / 2, 4, dt);
-      if (s.spot) {
-        const k = 1 - Math.exp(-6 * dt);
-        s.x += (s.spot.x - s.x) * k;
-        s.y += (s.spot.y - s.y) * k;
+      function dist(x1, y1, x2, y2) {
+        return Math.hypot(x2 - x1, y2 - y1);
       }
-      continue;
-    }
 
-    s.bleatT -= dt;
-    s.panic = Math.max(0, s.panic - dt * 0.55);
-    s.wetT = Math.max(0, s.wetT - dt);
-    s.wet = s.wetT > 0;
-
-    if (s.bleatT <= 0) {
-      s.bleatT = rand(3.5, 9);
-      if (Math.random() < 0.45 && game.state === 'playing') Sound.bleat(s.rebel ? 1.15 : rand(0.8, 1.2));
-    }
-
-    let fx = 0, fy = 0;
-    const rp = s.p;
-
-    /* --- flocking --- */
-    let cohX = 0, cohY = 0, aliX = 0, aliY = 0, sepX = 0, sepY = 0, n = 0;
-    for (let j = 0; j < sheep.length; j++) {
-      if (j === i) continue;
-      const o = sheep[j];
-      const dx = o.x - s.x, dy = o.y - s.y;
-      const d2 = dx * dx + dy * dy;
-      if (d2 > P.perception * P.perception || d2 < 0.01) continue;
-      const d = Math.sqrt(d2);
-      cohX += o.x; cohY += o.y;
-      aliX += o.vx; aliY += o.vy;
-      n++;
-      if (d < P.separationDist) {
-        const w = (P.separationDist - d) / P.separationDist;
-        sepX -= (dx / d) * w;
-        sepY -= (dy / d) * w;
+      function lerp(a, b, t) {
+        return a + (b - a) * t;
       }
-    }
 
-    if (n > 0) {
-      cohX /= n; cohY /= n; aliX /= n; aliY /= n;
-
-      let dx = cohX - s.x, dy = cohY - s.y;
-      const dc = Math.hypot(dx, dy) || 1;
-      const cohW = P.cohesion * rp.coh * 95;
-      fx += (dx / dc) * cohW;
-      fy += (dy / dc) * cohW;
-
-      fx += (aliX - s.vx) * P.alignment * rp.ali * 0.55;
-      fy += (aliY - s.vy) * P.alignment * rp.ali * 0.55;
-    }
-    fx += sepX * rp.sep * 1.15;
-    fy += sepY * rp.sep * 1.15;
-
-    /* --- fuga dal cane --- */
-    const ddx = s.x - dog.x, ddy = s.y - dog.y;
-    const dd = Math.hypot(ddx, ddy) || 1;
-    const fleeR = P.fleeRadius + (dog.barkT > 0 ? 30 : 0);
-    if (dd < fleeR) {
-      const t = 1 - dd / fleeR;
-      const power = P.fleeForce * (0.35 + t * t);
-      fx += (ddx / dd) * power;
-      fy += (ddy / dd) * power;
-      s.panic = Math.min(1, s.panic + dt * (0.55 + t * 1.1));
-    }
-
-    /* --- wander --- */
-    s.wanderA += dt * rp.speed * 0.9 * (s.rebel ? 1.5 : 1);
-    const wAmp = rp.wander * (s.rebel ? 1 : 0.55);
-    fx += Math.cos(s.wanderA) * wAmp;
-    fy += Math.sin(s.wanderA * 1.31 + s.seed * 6) * wAmp;
-
-    /* --- stati ribelli --- */
-    if (s.rebel) {
-      s.decisionT -= dt;
-      if (s.grazeT > 0) {
-        s.grazeT -= dt;
-        // "sto brucando, fatti tuoi": ignora quasi tutto
-        const damp = dd > 90 ? 0.16 : 1;
-        fx *= damp; fy *= damp;
-        s.state = 'stubborn';
-      } else if (s.dartT > 0) {
-        s.dartT -= dt;
-        fx += Math.cos(s.dartA) * CONFIG.rebel.dartSpeed * 3.4;
-        fy += Math.sin(s.dartA) * CONFIG.rebel.dartSpeed * 3.4;
-        s.state = 'flee';
-      } else if (s.decisionT <= 0) {
-        s.decisionT = rand(1.1, 3.0);
-        const r = Math.random();
-        const dogFar = dd > 150;
-        if (r < 0.18 + s.p.grazeBias * 0.22 && dogFar) {
-          s.grazeT = rand(CONFIG.rebel.grazeMin, CONFIG.rebel.grazeMax);
-        } else if (r < 0.55) {
-          s.dartT = rand(0.25, 0.6);
-          s.dartA = rand(0, TAU);
-        }
+      function lerpAngle(a, b, t) {
+        let diff = ((b - a + Math.PI) % PI2) - Math.PI;
+        if (diff < -Math.PI) diff += PI2;
+        return a + diff * t;
       }
-    }
 
-    /* --- acqua: evita la riva, oppure sguazza --- */
-    const shallowFord = isWaterBand(s.x, s.y, 0) && inFord(s.x);
-    const inWater = isWaterBand(s.x, s.y, 0) && !inBridge(s.x) && !inFord(s.x);
-
-    if (inWater) {
-      // pecora bagnata: torna sulla riva da cui è entrata (non attraversa a nuoto)
-      s.wetT = Math.max(s.wetT, 1.4);
-      s.panic = Math.min(1, s.panic + dt * 0.6);
-      if (!s.waterSide) s.waterSide = s.y < view.river.y ? -1 : 1;
-      fy += s.waterSide * P.waterEscape;
-      s.vx *= 1 - Math.min(0.9, dt * 2.4);
-      s.state = 'panic';
-      if (Math.random() < dt * 7) {
-        spawnParticle('splash', s.x + rand(-8, 8), s.y - 4, rand(-30, 30), rand(-70, -30), 0.5, 2.2, '#dff3fb');
+      function rr(x, y, w, h, r) {
+        r = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
       }
-    } else {
-      if (!isWaterBand(s.x, s.y, 30)) s.waterSide = 0;
-      // antiveggenza: due campioni lungo la direzione di movimento
-      if (!isCrossing(s.x)) {
-        let threat = 0;
-        for (let k = 1; k <= 2; k++) {
-          const ax = s.x + s.vx * 0.22 * k;
-          const ay = s.y + s.vy * 0.22 * k;
-          if (isWaterBand(ax, ay, 6) && !isCrossing(ax) && !inFord(ax)) {
-            threat = Math.max(threat, k === 1 ? 1 : 0.72);
+
+      function getSupportY(x) {
+        let y = GROUND_Y;
+        for (const b of BUILDINGS) {
+          if (x >= b.x - 8 && x <= b.x + b.w + 8) {
+            y = Math.min(y, b.y);
           }
         }
-        if (threat > 0) {
-          const side = s.y < view.river.y ? -1 : 1;
-          fy += side * P.waterAvoid * threat;
-          const cx = nearestCrossingX(s.x);
-          fx += clamp((cx - s.x) * 3.0, -P.bankFunnel, P.bankFunnel) * threat;
+        return y;
+      }
+
+      function isInDoghouseZone(obj) {
+        return (
+          obj.x > DOGHOUSE.x - 30 &&
+          obj.x < DOGHOUSE.x + DOGHOUSE.w + 30 &&
+          obj.y > DOGHOUSE.y + 10 &&
+          Math.abs(obj.vx) < 210 &&
+          Math.abs(obj.vy) < 210
+        );
+      }
+
+      function getPuppy(id) {
+        return puppies.find(p => p.id === id);
+      }
+
+      function pointerToWorld(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (e.clientX - rect.left) * (W / rect.width),
+          y: (e.clientY - rect.top) * (H / rect.height)
+        };
+      }
+
+      // ---------- audio ----------
+      function initAudio() {
+        try {
+          if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          }
+          if (audioCtx.state === "suspended") audioCtx.resume();
+        } catch (err) {}
+      }
+
+      function tone(freq, dur, type = "sine", vol = 0.06, slide = 0) {
+        if (!audioCtx) return;
+        try {
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.type = type;
+          o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+          if (slide) {
+            o.frequency.exponentialRampToValueAtTime(
+              Math.max(40, freq + slide),
+              audioCtx.currentTime + dur
+            );
+          }
+          g.gain.setValueAtTime(vol, audioCtx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+          o.connect(g);
+          g.connect(audioCtx.destination);
+          o.start();
+          o.stop(audioCtx.currentTime + dur);
+        } catch (err) {}
+      }
+
+      function playShoot() { tone(760, 0.07, "square", 0.035, -360); }
+      function playHit() { tone(280, 0.11, "triangle", 0.06, -130); }
+      function playAttach() { tone(540, 0.08, "sine", 0.05, 90); }
+      function playDrop() { tone(190, 0.16, "sawtooth", 0.045, -80); }
+
+      function playRescue() {
+        tone(660, 0.09, "sine", 0.055);
+        setTimeout(() => tone(880, 0.12, "sine", 0.055), 90);
+      }
+
+      function playWin() {
+        const notes = [523, 659, 784, 1046];
+        notes.forEach((n, i) => setTimeout(() => tone(n, 0.16, "sine", 0.06), i * 110));
+      }
+
+      // ---------- particles ----------
+      function addParticle(opt) {
+        particles.push({
+          x: 0,
+          y: 0,
+          vx: 0,
+          vy: 0,
+          life: 0.6,
+          maxLife: 0.6,
+          color: "#fff",
+          size: 14,
+          text: "",
+          gravity: 0,
+          ...opt
+        });
+      }
+
+      function updateParticles(dt) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.life -= dt;
+          p.vy += (p.gravity || 0) * dt;
+          p.x += (p.vx || 0) * dt;
+          p.y += (p.vy || 0) * dt;
+          if (p.life <= 0) particles.splice(i, 1);
         }
       }
-      // guado: acqua bassa, si passa ma si resta bagnati
-      if (shallowFord) { s.wetT = Math.max(s.wetT, 0.35); s.state = 'flee'; }
-    }
 
-    /* --- richiamo del recinto --- */
-    if (s.y > penB - 10 && s.y < penB + P.penRange && Math.abs(s.x - pen.gateX) < pen.w * 0.92) {
-      const t = 1 - clamp((s.y - penB) / P.penRange, 0, 1);
-      const dogBelow = dog.y > s.y - 6;
-      if (dogBelow && !s.wet) {
-        fx += (pen.gateX - s.x) * P.penPull * 2.4 * t;
-        fy -= P.penPull * 46 * t;
+      // ---------- entities ----------
+      function makeEagle(x = 620 + Math.random() * 280, y = 65 + Math.random() * 45) {
+        return {
+          type: "eagle",
+          x,
+          y,
+          vx: 0,
+          vy: 0,
+          state: "patrol",
+          timer: 1.2 + Math.random() * 1.5,
+          targetId: null,
+          stun: 0,
+          seed: Math.random() * 100,
+          flap: Math.random() * 10
+        };
       }
-    }
 
-    /* --- integrazione --- */
-    const grazing = s.state === 'stubborn';
-    const maxSpd = (s.panic > 0.55 ? P.panicSpeed : P.maxSpeed) * rp.speed * (s.wet ? P.waterSlow : 1) * (grazing ? 0.35 : 1);
-
-    s.vx += fx * dt;
-    s.vy += fy * dt;
-
-    // attrito
-    const drag = Math.exp(-P.friction * dt);
-    s.vx *= drag;
-    s.vy *= drag;
-
-    const sp = Math.hypot(s.vx, s.vy);
-    if (sp > maxSpd) {
-      s.vx = (s.vx / sp) * maxSpd;
-      s.vy = (s.vy / sp) * maxSpd;
-    }
-
-    s.x += s.vx * dt;
-    s.y += s.vy * dt;
-
-    // limiti campo
-    const m = 14;
-    if (s.x < m) { s.x = m; s.vx = Math.abs(s.vx) * 0.3; }
-    if (s.x > W - m) { s.x = W - m; s.vx = -Math.abs(s.vx) * 0.3; }
-    if (s.y < view.fieldTop + 6) { s.y = view.fieldTop + 6; s.vy = Math.abs(s.vy) * 0.3; }
-    if (s.y > H - 10) { s.y = H - 10; s.vy = -Math.abs(s.vy) * 0.3; }
-
-    // collisione con la staccionata
-    resolvePenCollision(s);
-
-    // ingresso
-    if (!s.penned && Math.abs(s.x - pen.gateX) < pen.gateW * 0.5 - 3 && s.y < penB - 12 && s.y > pen.y - 10) {
-      enterPen(s);
-    }
-
-    // stato (per l'animazione)
-    if (s.state !== 'stubborn' || s.grazeT <= 0) {
-      if (s.panic > 0.6) s.state = 'panic';
-      else if (dd < P.fleeRadius) s.state = 'flee';
-      else if (sp < 12) s.state = 'graze';
-      else s.state = 'wander';
-    }
-
-    if (sp > 26) {
-      s.angle = angleLerp(s.angle, Math.atan2(s.vy, s.vx), 1 - Math.exp(-7 * dt));
-    }
-
-    // gocciolamento quando è bagnata
-    if (s.wet && Math.random() < dt * 6) {
-      spawnParticle('drop', s.x + rand(-5, 5), s.y - 4, rand(-15, 15), rand(-20, 10), rand(0.3, 0.55), rand(1.5, 2.6), '#bfe6f7');
-    }
-
-    // saltello quando è appena entrata
-    s.bob += dt * (2.2 + sp * 0.045);
-  }
-}
-
-function resolvePenCollision(s) {
-  const p = view.pen;
-  // corridoio del cancello: sempre passabile
-  if (Math.abs(s.x - p.gateX) < p.gateW * 0.5 - 2) return;
-
-  const cx = clamp(s.x, p.x, p.x + p.w);
-  const cy = clamp(s.y, p.y, p.bottom);
-  let dx = s.x - cx, dy = s.y - cy;
-  let d = Math.hypot(dx, dy);
-
-  if (d >= s.r) return;
-  if (d < 0.001) return; // già dentro il recinto: la gestisce enterPen()
-
-  const nx = dx / d, ny = dy / d;
-  s.x = cx + nx * s.r;
-  s.y = cy + ny * s.r;
-
-  const vn = s.vx * nx + s.vy * ny;
-  if (vn < 0) {
-    s.vx -= nx * vn * 1.7;
-    s.vy -= ny * vn * 1.7;
-  }
-}
-
-function enterPen(s) {
-  if (s.penned) return;
-  s.penned = true;
-  s.bounce = 1;
-  s.panic = 0;
-  s.state = 'graze';
-
-  // posto libero più vicino
-  let best = null, bestD = Infinity;
-  for (const sp of penSpots) {
-    if (sp.taken) continue;
-    const d = dist2(sp.x, sp.y, s.x, s.y);
-    if (d < bestD) { bestD = d; best = sp; }
-  }
-  if (best) { best.taken = true; s.spot = best; }
-  else s.spot = { x: view.pen.x + view.pen.w / 2, y: view.pen.y + view.pen.h / 2 };
-
-  if (s.rebel) game.pennedRebel++;
-  else game.pennedNormal++;
-
-  // feedback
-  for (let i = 0; i < 12; i++) {
-    const a = rand(0, TAU);
-    spawnParticle('spark', s.x + Math.cos(a) * 6, s.y - 12 + Math.sin(a) * 6,
-      Math.cos(a) * rand(30, 90), Math.sin(a) * rand(-110, -40), rand(0.5, 0.9), rand(2, 3.6),
-      s.rebel ? '#ff7aa2' : '#ffe066');
-  }
-  for (let i = 0; i < 5; i++) {
-    spawnParticle('dust', s.x + rand(-8, 8), s.y, rand(-30, 30), rand(-40, -10), rand(0.35, 0.6), rand(2, 4), '#f3e6bf');
-  }
-
-  game.shake = Math.max(game.shake, CONFIG.feel.shakeOnPen);
-
-  if (s.rebel) {
-    toast('Pecora matta recuperata! 🎀', 'rebel');
-    Sound.sparkle();
-    for (let i = 0; i < 8; i++) {
-      spawnParticle('spark', s.x + rand(-20, 20), s.y - 20 + rand(-14, 14),
-        rand(-60, 60), rand(-130, -40), rand(0.6, 1.1), rand(2, 4), '#ffc2d6');
-    }
-  } else {
-    toast('Pecora nel recinto! 🐑');
-    Sound.bleat(1.1);
-  }
-
-  pulsePill(el.pillCount);
-  updateHud();
-  game.lastPenAt = game.clock;
-
-  // tutte dentro?
-  if (game.pennedNormal + game.pennedRebel >= sheep.length) {
-    setTimeout(win, 320);
-  }
-}
-
-/* --- anatre ------------------------------------------------------ */
-function startleDuck(dk, d) {
-  const wasCalm = dk.state !== 'startled';
-  dk.state = 'startled';
-  dk.timer = Math.max(dk.timer, rand(CONFIG.bark.duckStartleMin, CONFIG.bark.duckStartleMax));
-  dk.dir = dk.x < dog.x ? -1 : 1;
-
-  if (wasCalm) {
-    game.ducksStartled++;
-    Sound.quack();
-    for (let i = 0; i < 6; i++) {
-      spawnParticle('splash', dk.x + rand(-6, 6), dk.y, rand(-70, 70), rand(-120, -40), rand(0.3, 0.55), rand(1.8, 3.4), '#e8f8ff');
-    }
-  }
-
-  // nervosismo contagioso: le pecore vicine si innervosiscono
-  for (const s of sheep) {
-    if (s.penned) continue;
-    const dd = dist(s.x, s.y, dk.x, dk.y);
-    if (dd < 135) {
-      s.panic = Math.min(1, s.panic + 0.35);
-      const a = Math.atan2(s.y - dk.y, s.x - dk.x) + rand(-0.5, 0.5);
-      s.vx += Math.cos(a) * 55;
-      s.vy += Math.sin(a) * 55;
-    }
-  }
-}
-
-function updateDucks(dt) {
-  const C = CONFIG.ducks;
-  for (const dk of ducks) {
-    if (dk.state === 'startled') {
-      dk.timer -= dt;
-      if (dk.timer <= 0) dk.state = 'calm';
-    }
-
-    const boost = dk.state === 'startled' ? C.startleBoost : 1;
-    dk.x += dk.dir * dk.speed * boost * dt;
-
-    if (dk.x < 26) { dk.x = 26; dk.dir = 1; }
-    if (dk.x > W - 26) { dk.x = W - 26; dk.dir = -1; }
-
-    // resta dentro il fiume
-    const top = riverTopAt(dk.x) + 17;
-    const bot = riverBottomAt(dk.x) - 17;
-    const wantY = lerp(top, bot, dk.depth) + Math.sin(game.clock * 1.6 + dk.ph) * C.bobAmp * (dk.state === 'startled' ? 1.8 : 1);
-    dk.y = lerp(dk.y, wantY, 1 - Math.exp(-5 * dt));
-
-    // scia
-    dk.wakeT -= dt;
-    if (dk.wakeT <= 0 && dk.state !== 'startled') {
-      dk.wakeT = C.wakeRate;
-      spawnParticle('wake', dk.x - dk.dir * 8, dk.y + 3, -dk.dir * rand(4, 14), rand(-4, 4), rand(0.5, 0.9), rand(3, 6), 'rgba(255,255,255,0.5)');
-    }
-    if (dk.state === 'startled' && Math.random() < dt * 14) {
-      spawnParticle('splash', dk.x + rand(-8, 8), dk.y + 2, rand(-50, 50), rand(-90, -30), rand(0.25, 0.45), rand(1.5, 3), '#eaf9ff');
-    }
-  }
-}
-
-/* --- particelle -------------------------------------------------- */
-function updateParticles(dt) {
-  for (const p of particles) {
-    if (!p.alive) continue;
-    p.life -= dt;
-    if (p.life <= 0) { p.alive = false; continue; }
-    p.x += p.vx * dt;
-    p.y += p.vy * dt;
-    p.rot += p.spin * dt;
-
-    if (p.type === 'dust') { p.vx *= 1 - 2.6 * dt; p.vy *= 1 - 2.6 * dt; p.vy -= 12 * dt; }
-    else if (p.type === 'spark') { p.vy += 220 * dt; p.vx *= 1 - 1.2 * dt; }
-    else if (p.type === 'splash') { p.vy += 520 * dt; }
-    else if (p.type === 'drop') { p.vy += 420 * dt; }
-    else if (p.type === 'wake') { p.vx *= 1 - 1.5 * dt; }
-    else if (p.type === 'confetti') { p.vy += 260 * dt; p.vx *= 1 - 0.8 * dt; }
-  }
-}
-
-/* --- vittoria ---------------------------------------------------- */
-function checkWin() {
-  if (game.state !== 'playing') return;
-  if (game.pennedNormal + game.pennedRebel >= sheep.length) {
-    win();
-  }
-}
-
-function win() {
-  if (game.state !== 'playing') return;
-  game.state = 'won';
-
-  // ultimo tempo
-  const t = game.time;
-  const prevBest = game.best;
-  game.isRecord = !prevBest || t < prevBest - 0.05;
-  if (!prevBest || t < prevBest) {
-    game.best = t;
-    Store.set(BEST_KEY, String(t));
-  }
-
-  Sound.success();
-
-  // coriandoli
-  for (let i = 0; i < 40; i++) {
-    spawnParticle('confetti', rand(W * 0.15, W * 0.85), rand(-40, 60),
-      rand(-70, 70), rand(20, 120), rand(1.2, 2.2), rand(2.5, 5),
-      ['#ffd166', '#ef476f', '#06d6a0', '#118ab2', '#fff'][randInt(0, 4)], rand(-8, 8));
-  }
-
-  updateHud();
-  showEnd();
-}
-/* ------------------------------------------------------------------
-   8. DRAW
------------------------------------------------------------------- */
-
-/* --- acqua animata ---------------------------------------------- */
-function drawWaterAnim() {
-  const v = view;
-  ctx.save();
-  traceRiver(ctx, 0);
-  ctx.clip();
-
-  // linee di corrente
-  ctx.lineCap = 'round';
-  for (const l of waterLines) {
-    const yBase = v.river.y + l.off * v.river.half;
-    ctx.strokeStyle = 'rgba(255,255,255,' + l.a + ')';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (let x = -8; x <= W + 8; x += 16) {
-      const y = yBase + Math.sin(x * 0.042 + game.clock * l.sp * 1.6 + l.ph) * 4;
-      if (x === -8) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
-
-  // increspature
-  for (const r of ripples) {
-    const x = ((r.x + game.clock * r.sp) % (W + 70)) - 35;
-    const y = v.river.y + r.off * v.river.half * 0.85;
-    const pulse = 0.55 + 0.45 * Math.sin(game.clock * 2.2 + r.ph);
-    ctx.strokeStyle = 'rgba(255,255,255,' + (r.a * pulse).toFixed(3) + ')';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.ellipse(x, y, r.r * (0.55 + pulse * 0.55), r.r * 0.32, 0, 0, TAU);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-/* --- percorso disegnato ----------------------------------------- */
-function drawPath() {
-  if (path.length === 0) return;
-
-  if (path.length > 1) {
-    ctx.save();
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    ctx.setLineDash([9, 9]);
-    ctx.lineDashOffset = -game.clock * 26;
-
-    ctx.beginPath();
-    ctx.moveTo(path[0].x, path[0].y);
-    for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
-
-    ctx.strokeStyle = 'rgba(30,60,30,0.28)';
-    ctx.lineWidth = 6.5;
-    ctx.stroke();
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
-    ctx.lineWidth = 3.2;
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // puntino finale pulsante
-  const last = path[path.length - 1];
-  const pul = 0.7 + 0.3 * Math.sin(game.clock * 6);
-  ctx.fillStyle = 'rgba(255,255,255,' + (0.5 * pul) + ')';
-  ellipse(ctx, last.x, last.y, 9 * pul, 9 * pul, 0); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.95)';
-  ellipse(ctx, last.x, last.y, 3.4, 3.4, 0); ctx.fill();
-}
-
-/* --- ponte: ringhiere davanti agli animali ----------------------- */
-function drawBridgeFront() {
-  const b = view.bridge;
-  for (const side of [-1, 1]) {
-    const x = b.x + side * (b.half - 3);
-
-    // ombra della ringhiera
-    ctx.strokeStyle = 'rgba(40,25,10,0.28)';
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(x + 2, b.top + 6); ctx.lineTo(x + 2, b.bottom - 4); ctx.stroke();
-
-    // corrimano
-    ctx.strokeStyle = '#8a5a2b';
-    ctx.lineWidth = 4.5;
-    ctx.beginPath(); ctx.moveTo(x, b.top + 2); ctx.lineTo(x, b.bottom - 2); ctx.stroke();
-    ctx.strokeStyle = '#d59a5c';
-    ctx.lineWidth = 2.2;
-    ctx.beginPath(); ctx.moveTo(x - 1, b.top + 2); ctx.lineTo(x - 1, b.bottom - 2); ctx.stroke();
-
-    // paletti
-    for (let y = b.top + 4; y <= b.bottom - 2; y += 17) {
-      ctx.fillStyle = 'rgba(40,25,10,0.25)';
-      rr(ctx, x - 2.5 + 1, y - 5 + 1.5, 5, 10, 2); ctx.fill();
-      ctx.fillStyle = '#b3773c';
-      rr(ctx, x - 2.5, y - 5, 5, 10, 2); ctx.fill();
-      ctx.fillStyle = '#e0aa71';
-      rr(ctx, x - 1.6, y - 4.2, 3.2, 2.6, 1); ctx.fill();
-    }
-  }
-}
-
-/* --- anatre ------------------------------------------------------ */
-function drawDuck(dk) {
-  const startled = dk.state === 'startled';
-  const bob = Math.sin(game.clock * 2.4 + dk.ph) * 1.4;
-  const sc = S * 0.95;
-
-  ctx.save();
-  ctx.translate(dk.x, dk.y + bob * 0.4);
-
-  // scia sull'acqua
-  const wake = ctx.createLinearGradient(-dk.dir * 10, 0, -dk.dir * 34, 0);
-  wake.addColorStop(0, 'rgba(255,255,255,0.30)');
-  wake.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.strokeStyle = wake;
-  ctx.lineWidth = 6;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(-dk.dir * 8, 2);
-  ctx.lineTo(-dk.dir * 30, 3);
-  ctx.stroke();
-
-  ctx.scale(dk.dir > 0 ? sc : -sc, sc);
-
-  // ombra sull'acqua
-  ctx.fillStyle = 'rgba(15,60,85,0.22)';
-  ellipse(ctx, 0, 4, 10, 4.2, 0); ctx.fill();
-
-  // corpo
-  ctx.fillStyle = '#ffd93b';
-  ellipse(ctx, -1, -2, 9.5, 6.4, 0); ctx.fill();
-  ctx.fillStyle = '#fff3c4';
-  ellipse(ctx, 1, -1, 6, 4.2, 0); ctx.fill();
-
-  // coda
-  ctx.fillStyle = '#f0b429';
-  ctx.beginPath();
-  ctx.moveTo(-8, -4); ctx.lineTo(-13, -6.5); ctx.lineTo(-11, -1.5); ctx.closePath();
-  ctx.fill();
-
-  // ala / ali spiegate se spaventata
-  if (startled) {
-    const flap = Math.sin(game.clock * 26 + dk.ph) * 0.5;
-    for (const s of [-1, 1]) {
-      ctx.save();
-      ctx.translate(-2, -4);
-      ctx.rotate(s * (0.9 + flap));
-      ctx.fillStyle = '#ffe066';
-      ellipse(ctx, 0, -6, 3.4, 8, 0); ctx.fill();
-      ctx.strokeStyle = '#e8b71c'; ctx.lineWidth = 1;
-      ellipse(ctx, 0, -6, 3.4, 8, 0); ctx.stroke();
-      ctx.restore();
-    }
-  } else {
-    ctx.fillStyle = 'rgba(232,183,28,0.9)';
-    ellipse(ctx, -2, -2.5, 5.4, 3.5, -0.2); ctx.fill();
-    ctx.strokeStyle = 'rgba(200,150,20,0.5)'; ctx.lineWidth = 1;
-    ellipse(ctx, -2, -2.5, 5.4, 3.5, -0.2); ctx.stroke();
-  }
-
-  // collo + testa
-  ctx.fillStyle = '#ffdc4f';
-  ellipse(ctx, 6.5, -6.5, 4.2, 4.4, 0); ctx.fill();
-  ctx.fillStyle = '#ffce1f';
-  ellipse(ctx, 7.5, -7.5, 3.4, 3.2, 0); ctx.fill();
-
-  // becco
-  ctx.fillStyle = '#ff8c1a';
-  ctx.beginPath();
-  ctx.moveTo(10, -7.4); ctx.lineTo(15.2, -6.2); ctx.lineTo(10, -4.6); ctx.closePath();
-  ctx.fill();
-
-  // occhio
-  ctx.fillStyle = '#2b2620';
-  ellipse(ctx, 8.2, -8.4, 1.15, 1.15, 0); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ellipse(ctx, 8.5, -8.8, 0.45, 0.45, 0); ctx.fill();
-
-  ctx.restore();
-
-  // "!" quando è offesa
-  if (startled) {
-    const a = clamp(dk.timer, 0, 1);
-    ctx.globalAlpha = a;
-    ctx.fillStyle = '#ff5d73';
-    ctx.font = 'bold 15px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('!', dk.x, dk.y - 16);
-    ctx.globalAlpha = 1;
-  }
-}
-
-/* --- pecora ------------------------------------------------------ */
-function drawSheep(s) {
-  const bounce = s.bounce || 0;
-  const lift = bounce * 7;
-  const scaleBase = S * (1 + bounce * 0.10);
-  const wob = Math.sin(s.bob) * (s.state === 'graze' ? 0.03 : 0.075);
-  const walking = s.state !== 'graze' && s.state !== 'stubborn';
-
-  // ombra
-  ctx.fillStyle = 'rgba(28,52,22,' + (0.20 - bounce * 0.05) + ')';
-  ellipse(ctx, s.x, s.y + 1, 14 * S * (1 - bounce * 0.15), 5.2 * S, 0); ctx.fill();
-
-  ctx.save();
-  ctx.translate(s.x, s.y - lift);
-  ctx.rotate(wob);
-  ctx.scale(scaleBase, scaleBase);
-
-  const wool = s.wet ? '#e8e3d6' : '#fdfaf1';
-  const woolShade = s.wet ? '#cfc9b9' : '#e9dfcb';
-  const skin = s.wet ? '#4a4447' : '#3c3a3f';
-
-  // zampe
-  ctx.strokeStyle = skin;
-  ctx.lineWidth = 2.5;
-  ctx.lineCap = 'round';
-  const ph = s.bob * 2.2;
-  for (let i = 0; i < 4; i++) {
-    const lx = -5 + i * 3.4;
-    const swing = walking ? Math.sin(ph + i * 1.9) * 2.1 : Math.sin(ph + i) * 0.5;
-    ctx.beginPath();
-    ctx.moveTo(lx, -7);
-    ctx.lineTo(lx + swing, -0.6);
-    ctx.stroke();
-  }
-
-  // coda corta
-  ctx.fillStyle = woolShade;
-  ellipse(ctx, -9.5, -13, 3.8, 3.2, 0.4); ctx.fill();
-
-  // lana
-  ctx.fillStyle = wool;
-  ellipse(ctx, 0, -14, 9.6, 8.4, 0); ctx.fill();
-  ellipse(ctx, -6.5, -12.5, 6.6, 6, 0); ctx.fill();
-  ellipse(ctx, 6.5, -12.5, 6.6, 6, 0); ctx.fill();
-  ellipse(ctx, -4, -18.5, 5.8, 5, 0); ctx.fill();
-  ellipse(ctx, 4, -18.5, 5.8, 5, 0); ctx.fill();
-
-  // ombra interna della lana
-  ctx.fillStyle = woolShade;
-  ctx.globalAlpha = 0.55;
-  ellipse(ctx, 0, -9.5, 8.2, 3.4, 0); ctx.fill();
-  ctx.globalAlpha = 1;
-
-  // testa (segue la direzione)
-  const hx = Math.cos(s.angle) * 7.4;
-  const hy = Math.sin(s.angle) * 3.2 - 13;
-
-  // orecchie
-  ctx.fillStyle = skin;
-  ellipse(ctx, hx - 5.2, hy - 0.6, 2.6, 1.7, -0.5); ctx.fill();
-  ellipse(ctx, hx + 5.2, hy - 0.6, 2.6, 1.7, 0.5); ctx.fill();
-
-  // testa
-  ctx.fillStyle = skin;
-  ellipse(ctx, hx, hy, 5.4, 5, 0); ctx.fill();
-  // musetto chiaro
-  ctx.fillStyle = 'rgba(255,255,255,0.18)';
-  ellipse(ctx, hx + Math.cos(s.angle) * 2.4, hy + 1.4, 2.6, 1.9, 0); ctx.fill();
-  // occhi
-  ctx.fillStyle = '#fff';
-  ellipse(ctx, hx - 2, hy - 1.2, 1.15, 1.15, 0); ctx.fill();
-  ellipse(ctx, hx + 2, hy - 1.2, 1.15, 1.15, 0); ctx.fill();
-  ctx.fillStyle = '#171418';
-  ellipse(ctx, hx - 2, hy - 1.1, 0.6, 0.6, 0); ctx.fill();
-  ellipse(ctx, hx + 2, hy - 1.1, 0.6, 0.6, 0); ctx.fill();
-
-  // dettagli ribelle: bandana + ciuffo + macchia
-  if (s.rebel) {
-    ctx.fillStyle = '#ef476f';
-    ctx.beginPath();
-    ctx.moveTo(hx - 5.4, hy + 3.4);
-    ctx.lineTo(hx + 5.4, hy + 3.4);
-    ctx.lineTo(hx, hy + 8.6);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    for (let i = -1; i <= 1; i++) {
-      ellipse(ctx, hx + i * 2.6, hy + 5.2, 0.7, 0.7, 0); ctx.fill();
-    }
-    // ciuffo
-    ctx.strokeStyle = '#3c3a3f';
-    ctx.lineWidth = 1.7;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(hx - 1, hy - 4.6);
-    ctx.quadraticCurveTo(hx + 0.5, hy - 8.5, hx + 3.4, hy - 7.6);
-    ctx.stroke();
-  }
-
-  ctx.restore();
-
-  // indicatore "ribelle" sopra la testa
-  if (s.rebel && !s.penned) {
-    const t = game.clock * 3 + s.seed * 8;
-    const floatY = -34 * S + Math.sin(t) * 2.4;
-    ctx.save();
-    ctx.translate(s.x, s.y + floatY);
-    ctx.scale(S, S);
-    const isStubborn = s.state === 'stubborn';
-    ctx.fillStyle = isStubborn ? 'rgba(239,71,111,0.95)' : 'rgba(239,71,111,0.78)';
-    ellipse(ctx, 0, 0, 5.8, 5.8, 0); ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 8.5px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(isStubborn ? 'zZ' : '!', 0, 0.5);
-    ctx.restore();
-  }
-
-  // (le goccioline sono gestite in updateSheep)
-}
-
-/* --- cane -------------------------------------------------------- */
-function drawDog() {
-  const spdN = clamp(dog.speed / CONFIG.dog.speed, 0, 1);
-  const ph = dog.anim;
-  const sc = S;
-
-  // ombra
-  ctx.fillStyle = 'rgba(25,45,20,0.22)';
-  ellipse(ctx, dog.x, dog.y + 2, 17 * S, 6.6 * S, 0); ctx.fill();
-
-  ctx.save();
-  ctx.translate(dog.x, dog.y);
-  ctx.rotate(dog.angle);
-  ctx.scale(sc * 1.15, sc * 1.15);
-
-  // zampe (dietro al corpo): bianche con zampa nera
-  ctx.lineCap = 'round';
-  for (let i = 0; i < 4; i++) {
-    const front = i < 2;
-    const lx = front ? 8 : -8;
-    const side = i % 2 === 0 ? -1 : 1;
-    const swing = Math.sin(ph * 2 + i * 1.7) * 3.6 * spdN;
-    const ex = lx + swing;
-    const ey = side * (10 + spdN * 1.2);
-    ctx.strokeStyle = '#f7f5ef';
-    ctx.lineWidth = 3.9;
-    ctx.beginPath();
-    ctx.moveTo(lx, side * 5.4);
-    ctx.lineTo(ex, ey);
-    ctx.stroke();
-    ctx.fillStyle = '#2b2a30';
-    ctx.beginPath(); ctx.arc(ex, ey, 1.9, 0, TAU); ctx.fill();
-  }
-
-  // coda
-  const wag = Math.sin(dog.tail) * 0.55;
-  ctx.save();
-  ctx.translate(-14, 0);
-  ctx.rotate(wag);
-  ctx.strokeStyle = '#f7f5ef';
-  ctx.lineWidth = 4.6;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.quadraticCurveTo(-6, 1, -9.5, 3.5);
-  ctx.stroke();
-  ctx.strokeStyle = '#2b2a30';
-  ctx.lineWidth = 4.4;
-  ctx.beginPath();
-  ctx.moveTo(-7.6, 2.6);
-  ctx.lineTo(-9.8, 3.8);
-  ctx.stroke();
-  ctx.restore();
-
-  // corpo
-  ctx.fillStyle = '#fbf9f3';
-  ellipse(ctx, -1, 0, 15.5, 8.8, 0); ctx.fill();
-  ctx.strokeStyle = 'rgba(48,42,50,0.45)';
-  ctx.lineWidth = 1.2;
-  ctx.stroke();
-
-  // sella nera
-  ctx.fillStyle = '#2b2a30';
-  ellipse(ctx, -4, -0.5, 8.6, 7.4, 0.1); ctx.fill();
-  ellipse(ctx, 1.5, -5.5, 4.2, 3.2, 0.3); ctx.fill();
-  ellipse(ctx, -10, 4.5, 4.6, 3, -0.3); ctx.fill();
-
-  // petto bianco
-  ctx.fillStyle = '#ffffff';
-  ellipse(ctx, 9.5, 0, 5.6, 6.6, 0); ctx.fill();
-
-  // collare
-  ctx.strokeStyle = '#e04a5f';
-  ctx.lineWidth = 3.2;
-  ctx.beginPath();
-  ctx.moveTo(12.2, -5.4);
-  ctx.quadraticCurveTo(14.6, 0, 12.2, 5.4);
-  ctx.stroke();
-
-  // testa
-  ctx.fillStyle = '#2b2a30';
-  ellipse(ctx, 13.5, 0, 7.6, 6.6, 0); ctx.fill();
-  ctx.strokeStyle = 'rgba(48,42,50,0.45)';
-  ctx.lineWidth = 1.2;
-  ctx.stroke();
-
-  // orecchie
-  ctx.fillStyle = '#2b2a30';
-  ctx.beginPath();
-  ctx.moveTo(10.5, -5.4); ctx.quadraticCurveTo(7.5, -10, 10.5, -9.6); ctx.quadraticCurveTo(13.4, -9, 14.2, -5.6); ctx.closePath();
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(10.5, 5.4); ctx.quadraticCurveTo(7.5, 10, 10.5, 9.6); ctx.quadraticCurveTo(13.4, 9, 14.2, 5.6); ctx.closePath();
-  ctx.fill();
-  // interno orecchie
-  ctx.fillStyle = '#e8a0a8';
-  ctx.beginPath();
-  ctx.moveTo(10.9, -6.2); ctx.quadraticCurveTo(9, -8.6, 10.9, -8.4); ctx.quadraticCurveTo(12.4, -8.1, 12.8, -6.3); ctx.closePath();
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(10.9, 6.2); ctx.quadraticCurveTo(9, 8.6, 10.9, 8.4); ctx.quadraticCurveTo(12.4, 8.1, 12.8, 6.3); ctx.closePath();
-  ctx.fill();
-
-  // muso
-  const mouthOpen = dog.barkT > 0 ? clamp(dog.barkT / CONFIG.bark.duration, 0, 1) : 0;
-  ctx.fillStyle = '#ffffff';
-  ellipse(ctx, 18.4, 0, 4.6, 3.4, 0); ctx.fill();
-  ctx.fillStyle = '#2b2a30';
-  ellipse(ctx, 21.4, 0, 1.7, 1.5, 0); ctx.fill();
-
-  // bocca aperta quando abbaia
-  if (mouthOpen > 0) {
-    ctx.fillStyle = '#7d2b34';
-    ellipse(ctx, 19.6, 0, 3.2, 2.2 * mouthOpen + 0.6, 0); ctx.fill();
-    ctx.fillStyle = '#ff8fa0';
-    ellipse(ctx, 19, 0, 1.9, 1.1 * mouthOpen + 0.2, 0); ctx.fill();
-  }
-
-  // occhi
-  ctx.fillStyle = '#ffffff';
-  ellipse(ctx, 15.6, -3.6, 1.5, 1.5, 0); ctx.fill();
-  ellipse(ctx, 15.6, 3.6, 1.5, 1.5, 0); ctx.fill();
-  ctx.fillStyle = '#121014';
-  ellipse(ctx, 16.1, -3.6, 0.8, 0.8, 0); ctx.fill();
-  ellipse(ctx, 16.1, 3.6, 0.8, 0.8, 0); ctx.fill();
-
-  ctx.restore();
-
-  // anello dell'abbaio
-  if (dog.barkT > 0) {
-    const k = 1 - dog.barkT / CONFIG.bark.duration; // 0 -> 1
-    const rad = 26 + k * CONFIG.bark.radius;
-    const alpha = (1 - k) * 0.55;
-    ctx.save();
-    ctx.lineWidth = 3.2;
-    ctx.strokeStyle = 'rgba(255,255,255,' + alpha.toFixed(3) + ')';
-    ellipse(ctx, dog.x, dog.y, rad, rad * 0.72, 0); ctx.stroke();
-    ctx.lineWidth = 1.6;
-    ctx.strokeStyle = 'rgba(255,230,150,' + (alpha * 0.9).toFixed(3) + ')';
-    ellipse(ctx, dog.x, dog.y, rad * 0.72, rad * 0.52, 0); ctx.stroke();
-    ctx.restore();
-  }
-}
-
-/* --- particelle -------------------------------------------------- */
-function drawParticles() {
-  for (const p of particles) {
-    if (!p.alive) continue;
-    const t = p.life / p.max;
-    if (p.type === 'dust') {
-      ctx.globalAlpha = t * 0.6;
-      ctx.fillStyle = p.color;
-      ellipse(ctx, p.x, p.y, p.size * (1.6 - t * 0.6), p.size * (1.6 - t * 0.6), 0);
-      ctx.fill();
-    } else if (p.type === 'spark') {
-      ctx.globalAlpha = t;
-      ctx.fillStyle = p.color;
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rot);
-      const s = p.size * (0.5 + t * 0.8);
-      ctx.beginPath();
-      ctx.moveTo(0, -s * 2); ctx.lineTo(s * 0.7, 0); ctx.lineTo(0, s * 2); ctx.lineTo(-s * 0.7, 0);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    } else if (p.type === 'splash' || p.type === 'drop') {
-      ctx.globalAlpha = t * 0.9;
-      ctx.fillStyle = p.color;
-      ellipse(ctx, p.x, p.y, p.size, p.size * 0.9, 0);
-      ctx.fill();
-    } else if (p.type === 'wake') {
-      ctx.globalAlpha = t * 0.7;
-      ctx.strokeStyle = p.color;
-      ctx.lineWidth = 1.2;
-      ellipse(ctx, p.x, p.y, p.size * (1.8 - t), p.size * 0.5, 0);
-      ctx.stroke();
-    } else if (p.type === 'confetti') {
-      ctx.globalAlpha = Math.min(1, t * 2);
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rot);
-      ctx.fillStyle = p.color;
-      ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
-      ctx.restore();
-    }
-  }
-  ctx.globalAlpha = 1;
-}
-
-/* --- entità ordinate per profondità ------------------------------ */
-const drawItems = [];
-for (let i = 0; i < 24; i++) drawItems.push({ y: 0, e: null, dog: false });
-
-function drawEntities() {
-  let n = 0;
-  for (const s of sheep) {
-    const it = drawItems[n++];
-    it.y = s.y; it.e = s; it.dog = false;
-  }
-  const it = drawItems[n++];
-  it.y = dog.y; it.e = dog; it.dog = true;
-
-  // insertion sort (n <= 9, zero allocazioni)
-  for (let i = 1; i < n; i++) {
-    const cur = drawItems[i];
-    let j = i - 1;
-    while (j >= 0 && drawItems[j].y > cur.y) { drawItems[j + 1] = drawItems[j]; j--; }
-    drawItems[j + 1] = cur;
-  }
-
-  for (let i = 0; i < n; i++) {
-    const d = drawItems[i];
-    if (d.dog) drawDog();
-    else drawSheep(d.e);
-  }
-}
-
-/* --- frame ------------------------------------------------------- */
-function draw() {
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-
-  ctx.save();
-  if (game.shake > 0.05) {
-    const s = game.shake;
-    ctx.translate(rand(-s, s), rand(-s, s));
-  }
-
-  ctx.drawImage(bgCanvas, 0, 0, W, H);
-
-  drawWaterAnim();
-  drawPath();
-
-  // anatre sotto agli animali che sono sulla riva
-  for (const dk of ducks) drawDuck(dk);
-
-  drawEntities();
-  drawBridgeFront();
-  drawParticles();
-
-  ctx.restore();
-}
-
-/* ------------------------------------------------------------------
-   9. LOOP / INPUT / UI
------------------------------------------------------------------- */
-let lastFrame = performance.now();
-let hudAcc = 0;
-
-function frame(now) {
-  const raw = (now - lastFrame) / 1000;
-  lastFrame = now;
-  // dt clampato: niente salti dopo un tab in background
-  const dt = clamp(raw, 0.0005, 0.04);
-
-  update(dt);
-  draw();
-
-  hudAcc += raw;
-  if (hudAcc > 0.1) {
-    hudAcc = 0;
-    if (game.state === 'playing') updateHud();
-    updateBarkChip();
-  }
-
-  requestAnimationFrame(frame);
-}
-
-function update(dt) {
-  game.clock += dt;
-
-  if (game.state === 'playing') {
-    game.time += dt;
-    updateDog(dt);
-    updateSheep(dt);
-    updateDucks(dt);
-
-    if (game.hintT > 0) {
-      game.hintT -= dt;
-      if (!game.hintShown && game.hintT < 5.2) {
-        game.hintShown = true;
-        el.hint.classList.add('show');
-        setTimeout(() => el.hint.classList.remove('show'), 3600);
+      function makeWolf(x = 480 + Math.random() * 360) {
+        return {
+          type: "wolf",
+          x,
+          y: GROUND_Y - 28,
+          vx: 0,
+          dir: Math.random() < 0.5 ? -1 : 1,
+          speed: 76,
+          state: "patrol",
+          timer: 1 + Math.random(),
+          targetId: null,
+          scare: 0
+        };
       }
-    }
-  } else if (game.state === 'won') {
-    updateDucks(dt * 0.7);
-    updateSheep(dt);
-  } else {
-    // menu: scena viva ma tranquilla
-    updateDucks(dt * 0.8);
-  }
 
-  updateParticles(dt);
+      function spawnPuppies() {
+        puppies = PUPPY_DATA.map((d, i) => {
+          const b = BUILDINGS[i];
+          return {
+            id: i + 1,
+            name: d.name,
+            fur: d.fur,
+            patch: d.patch,
+            x: b.x + b.w / 2,
+            y: b.y - 20,
+            vx: 0,
+            vy: 0,
+            state: "lost",
+            carrier: null,
+            bob: Math.random() * 10
+          };
+        });
+      }
 
-  if (game.shake > 0) {
-    game.shake = Math.max(0, game.shake - CONFIG.feel.shakeDecay * dt);
-  }
-}
+      function resetGame() {
+        running = false;
+        won = false;
+        time = 0;
+        rescued = 0;
+        panic = 0;
+        heat = 0;
+        overheat = false;
+        lastFire = -1;
+        lastAttach = -1;
 
-function updateBarkChip() {
-  const p = 100 - (dog.barkCd / CONFIG.bark.cooldown) * 100;
-  el.chip.style.setProperty('--p', Math.round(p));
-  el.chip.classList.toggle('ready', dog.barkCd <= 0);
-}
+        stats.maxPanic = 0;
+        stats.drops = 0;
+        stats.enemiesStunned = 0;
+        stats.shots = 0;
 
-/* --- pointer: disegna percorso / tap = abbaio -------------------- */
-const input = {
-  active: false,
-  id: null,
-  sx: 0, sy: 0,
-  moved: 0,
-  t0: 0,
-  lastX: 0, lastY: 0,
-};
+        Object.assign(heli, {
+          x: 140,
+          y: HELI_GROUND_Y,
+          vx: 0,
+          vy: 0,
+          ax: 0,
+          ay: 0,
+          angle: 0,
+          aimAngle: 0,
+          rotor: 0,
+          jerk: 0,
+          onGround: true,
+          target: null,
+          carrying: []
+        });
 
-function localPos(clientX, clientY) {
-  const r = cv.getBoundingClientRect();
-  return { x: clientX - r.left, y: clientY - r.top };
-}
+        Object.assign(input, {
+          pointerDown: false,
+          pointerId: null,
+          pointerX: 0,
+          pointerY: 0,
+          startX: 0,
+          startY: 0,
+          startT: 0,
+          moved: false,
+          sling: false,
+          fire: false
+        });
 
-function onDown(x, y, id) {
-  if (game.state !== 'playing') return;
-  if (input.active) return;
-  input.active = true;
-  input.id = id;
-  input.sx = input.lastX = x;
-  input.sy = input.lastY = y;
-  input.moved = 0;
-  input.t0 = performance.now();
-  Sound.unlock();
-}
+        spawnPuppies();
+        eagles = [makeEagle()];
+        wolves = [makeWolf()];
+        bullets = [];
+        particles = [];
+      }
 
-function onMove(x, y, id) {
-  if (!input.active || id !== input.id) return;
-  const d = Math.hypot(x - input.sx, y - input.sy);
-  input.moved = Math.max(input.moved, d);
+      function removeFromHeli(p) {
+        heli.carrying = heli.carrying.filter(id => id !== p.id);
+        p.carrier = null;
+      }
 
-  if (d > 6) {
-    // il percorso parte dal dito (e prosegue fluido)
-    addPathPoint(x, y);
-  }
-  input.lastX = x;
-  input.lastY = y;
-}
+      function attachPuppy(p) {
+        p.state = "attached";
+        p.carrier = "heli";
+        heli.carrying.push(p.id);
+        addParticle({
+          x: p.x,
+          y: p.y - 18,
+          vy: -45,
+          life: 0.65,
+          color: "#7CFC00",
+          size: 18,
+          text: "♥"
+        });
+        playAttach();
+      }
 
-function onUp(x, y, id) {
-  if (!input.active || id !== input.id) return;
-  input.active = false;
-  input.id = null;
+      function rescuePuppy(p) {
+        if (!p || p.state === "rescued") return;
+        p.state = "rescued";
+        p.carrier = null;
+        rescued++;
+        panic = Math.max(0, panic - 18);
+        addParticle({
+          x: p.x,
+          y: p.y - 10,
+          vy: -70,
+          life: 0.9,
+          color: "#ffd166",
+          size: 22,
+          text: "★"
+        });
+        playRescue();
+      }
 
-  const dt = performance.now() - input.t0;
-  const moved = Math.max(input.moved, Math.hypot(x - input.sx, y - input.sy));
+      function dropPuppyToGround(p, reason = "panic") {
+        if (!p || p.state !== "attached") return;
+        removeFromHeli(p);
+        p.state = "falling";
+        p.vy = 35;
+        p.vx = heli.vx * 0.15 + (Math.random() - 0.5) * 35;
+        stats.drops++;
+        addParticle({
+          x: p.x,
+          y: p.y - 18,
+          vy: -50,
+          life: 0.7,
+          color: "#ff6b6b",
+          size: 20,
+          text: "!"
+        });
+        playDrop();
+      }
 
-  // tap rapido = abbaio
-  if (dt < 280 && moved < 26) {
-    bark();
-  }
-}
+      function dropEaglePuppy(p, e) {
+        if (!p || p.state !== "danger" || p.carrier !== e) return;
+        p.state = "falling";
+        p.carrier = null;
+        p.vy = 70;
+        p.vx = (Math.random() - 0.5) * 90;
+        e.targetId = null;
+        addParticle({
+          x: p.x,
+          y: p.y - 18,
+          vy: -45,
+          life: 0.65,
+          color: "#ffd166",
+          size: 18,
+          text: "?"
+        });
+      }
 
-/* --- event binding ---------------------------------------------- */
-(function bindInput() {
-  const hasPointer = 'onpointerdown' in window;
+      function winGame() {
+        won = true;
+        running = false;
+        playWin();
 
-  if (hasPointer) {
-    cv.addEventListener('pointerdown', (e) => {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
-      e.preventDefault();
-      cv.setPointerCapture && cv.setPointerCapture(e.pointerId);
-      const p = localPos(e.clientX, e.clientY);
-      onDown(p.x, p.y, e.pointerId);
-    }, { passive: false });
+        winTitle.textContent = "RORY HA SALVATO TUTTI I CUCCIOLI! 🎉";
+        winStats.innerHTML =
+          `Tempo: <strong>${Math.round(time)}s</strong><br>` +
+          `Panico massimo: <strong>${Math.round(stats.maxPanic)}%</strong><br>` +
+          `Cuccioli caduti: <strong>${stats.drops}</strong><br>` +
+          `Predatori storditi: <strong>${stats.enemiesStunned}</strong>`;
 
-    cv.addEventListener('pointermove', (e) => {
-      if (!input.active) return;
-      e.preventDefault();
-      const p = localPos(e.clientX, e.clientY);
-      onMove(p.x, p.y, e.pointerId);
-    }, { passive: false });
+        winScreen.classList.remove("hidden");
+      }
 
-    cv.addEventListener('pointerup', (e) => {
-      if (!input.active) return;
-      e.preventDefault();
-      const p = localPos(e.clientX, e.clientY);
-      onUp(p.x, p.y, e.pointerId);
-    }, { passive: false });
+      // ---------- update ----------
+      function updateHeli(dt) {
+        heli.rotor += dt * (24 + Math.abs(heli.vx) * 0.035);
 
-    cv.addEventListener('pointercancel', () => { input.active = false; input.id = null; });
-    cv.addEventListener('lostpointercapture', () => { input.active = false; input.id = null; });
-  } else {
-    // fallback touch per browser vecchi
-    cv.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      const t = e.changedTouches[0];
-      const p = localPos(t.clientX, t.clientY);
-      onDown(p.x, p.y, t.identifier);
-    }, { passive: false });
+        let target = null;
+        if (input.pointerDown) {
+          target = { x: input.pointerX, y: input.pointerY };
+        } else if (heli.target) {
+          target = heli.target;
+        }
 
-    cv.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-      const t = e.changedTouches[0];
-      const p = localPos(t.clientX, t.clientY);
-      onMove(p.x, p.y, t.identifier);
-    }, { passive: false });
+        let ax = 0;
+        let ay = 0;
 
-    cv.addEventListener('touchend', (e) => {
-      e.preventDefault();
-      const t = e.changedTouches[0];
-      const p = localPos(t.clientX, t.clientY);
-      onUp(p.x, p.y, t.identifier);
-    }, { passive: false });
+        if (target) {
+          const dx = target.x - heli.x;
+          const dy = target.y - heli.y;
+          const desiredVx = clamp(dx * 3.1, -360, 360);
+          const desiredVy = clamp(dy * 3.1, -360, 360);
+          ax = (desiredVx - heli.vx) * 5.4;
+          ay = (desiredVy - heli.vy) * 5.4;
+        } else {
+          ax = -heli.vx * 3.6;
+          ay = -heli.vy * 3.6;
+        }
 
-    cv.addEventListener('mousedown', (e) => {
-      const p = localPos(e.clientX, e.clientY);
-      onDown(p.x, p.y, 'mouse');
-    });
-    window.addEventListener('mousemove', (e) => {
-      const p = localPos(e.clientX, e.clientY);
-      onMove(p.x, p.y, 'mouse');
-    });
-    window.addEventListener('mouseup', (e) => {
-      const p = localPos(e.clientX, e.clientY);
-      onUp(p.x, p.y, 'mouse');
-    });
-  }
+        heli.ax = ax;
+        heli.ay = ay;
+        heli.jerk = Math.hypot(ax, ay);
 
-  // blocca gesture iOS (pinch / double-tap zoom / rimbalzo)
-  document.addEventListener('touchmove', (e) => {
-    if (e.touches.length > 1) e.preventDefault();
-  }, { passive: false });
+        heli.vx += ax * dt;
+        heli.vy += ay * dt;
 
-  document.addEventListener('gesturestart', (e) => e.preventDefault());
-  document.addEventListener('contextmenu', (e) => e.preventDefault());
-  document.addEventListener('dblclick', (e) => e.preventDefault());
-})();
+        heli.vx = clamp(heli.vx, -390, 390);
+        heli.vy = clamp(heli.vy, -390, 390);
 
-/* --- UI ---------------------------------------------------------- */
-const screens = {
-  start: document.getElementById('startScreen'),
-  end: document.getElementById('endScreen'),
-};
-const btnStart = document.getElementById('btnStart');
-const btnRetry = document.getElementById('btnRetry');
-const btnRestart = document.getElementById('btnRestart');
-const btnSound = document.getElementById('btnSound');
-const startFoot = document.getElementById('startFoot');
+        heli.x += heli.vx * dt;
+        heli.y += heli.vy * dt;
 
-function showStartScreen() {
-  screens.start.classList.remove('hidden');
-  screens.end.classList.add('hidden');
-  game.state = 'menu';
-}
+        if (heli.x < 35) { heli.x = 35; heli.vx = 0; }
+        if (heli.x > W - 35) { heli.x = W - 35; heli.vx = 0; }
 
-function startGame() {
-  screens.start.classList.add('hidden');
-  screens.end.classList.add('hidden');
-  Sound.unlock();
-  newLevel();
-}
+        if (heli.y < 45) {
+          heli.y = 45;
+          heli.vy = Math.max(0, heli.vy);
+        }
 
-function showEnd() {
-  const t = game.time;
-  const total = sheep.length;
-  const rebelTotal = sheep.filter((s) => s.rebel).length;
-  const normalTotal = total - rebelTotal;
+        if (heli.y > HELI_GROUND_Y) {
+          heli.y = HELI_GROUND_Y;
+          heli.vy = 0;
+          heli.onGround = true;
+        } else {
+          heli.onGround = false;
+        }
 
-  let stars = 1;
-  if (t <= CONFIG.stars.three && game.wasted <= CONFIG.stars.maxWasted) stars = 3;
-  else if (t <= CONFIG.stars.two) stars = 2;
+        heli.angle = clamp(heli.vx * 0.0018, -0.32, 0.32);
 
-  const isRecord = game.best !== null && Math.abs(game.best - t) < 0.001;
+        // turret auto-aim verso predatore più vicino, altrimenti guarda avanti
+        const aimTarget = nearestEnemy();
+        const desiredAim = aimTarget
+          ? Math.atan2(aimTarget.y - heli.y, aimTarget.x - heli.x)
+          : heli.angle;
+        heli.aimAngle = lerpAngle(heli.aimAngle, desiredAim, Math.min(1, dt * 8));
 
-  document.getElementById('endStars').innerHTML =
-    [0, 1, 2].map((i) => '<span class="' + (i < stars ? 'on' : '') + '">★</span>').join('');
+        // consegna automatica alla cuccia
+        if (isInDoghouseZone(heli) && heli.carrying.length > 0) {
+          const ids = heli.carrying.slice();
+          for (const id of ids) {
+            const p = getPuppy(id);
+            if (p && p.state === "attached") rescuePuppy(p);
+          }
+          heli.carrying = [];
+        }
+      }
 
-  document.getElementById('endTitle').textContent =
-    stars === 3 ? 'GREGGE RADUNATO!' : stars === 2 ? 'GREGGE RADUNATO!' : 'MISSIONE COMPIUTA!';
+      function updateSling(dt) {
+        if (!input.sling) return;
+        if (time - lastAttach < 0.18) return;
+        lastAttach = time;
 
-  document.getElementById('endSub').textContent =
-    stars === 3
-      ? 'Le pecore sono nel recinto. Il Border Collie ha fatto il suo dovere.'
-      : stars === 2
-        ? 'Le pecore sono nel recinto. Qualcuna è ancora un po\' offesa.'
-        : 'Le pecore sono nel recinto. Con calma, ma ci sono.';
+        if (heli.carrying.length >= heli.maxCarry) return;
 
-  const stats = [];
-  stats.push('<div class="stat"><span class="k">Tempo</span><span class="v">' + formatTime(t) + '</span></div>');
-  stats.push('<div class="stat gold"><span class="k">Record</span><span class="v">' + (game.best ? formatTime(game.best) : '--') + '</span></div>');
-  stats.push('<div class="stat"><span class="k">Pecore normali</span><span class="v">' + game.pennedNormal + '/' + normalTotal + '</span></div>');
-  stats.push('<div class="stat"><span class="k">Pecore matte</span><span class="v">' + game.pennedRebel + '/' + rebelTotal + '</span></div>');
-  stats.push('<div class="stat wide"><span class="k">Abbai</span><span class="v">' + game.barks + ' (a vuoto: ' + game.wasted + ')</span></div>');
-  document.getElementById('endStats').innerHTML = stats.join('');
+        const hx = heli.x;
+        const hy = heli.y + 34;
+        let best = null;
+        let bestD = 112;
 
-  const lines = [];
-  if (game.isRecord) lines.push('Nuovo record personale!');
-  if (game.ducksStartled > 0) lines.push('Le anatre sono offese (' + game.ducksStartled + ').');
-  if (game.pennedRebel > 0) lines.push('Pecore matte recuperate: ' + game.pennedRebel + '.');
-  document.getElementById('endFoot').textContent = lines.join(' ') || 'Il Border Collie ha fatto il suo dovere.';
+        for (const p of puppies) {
+          if (p.state !== "lost") continue;
+          const d = dist(hx, hy, p.x, p.y);
+          if (d < bestD) {
+            bestD = d;
+            best = p;
+          }
+        }
 
-  screens.end.classList.remove('hidden');
-  game.state = 'won';
-}
+        if (best) attachPuppy(best);
+      }
 
-btnStart.addEventListener('click', () => { Sound.click(); startGame(); });
-btnRetry.addEventListener('click', () => { Sound.click(); startGame(); });
+      function updatePuppies(dt) {
+        for (const p of puppies) {
+          if (p.state === "attached") {
+            const idx = heli.carrying.indexOf(p.id);
+            if (idx < 0) {
+              p.state = "falling";
+              continue;
+            }
 
-btnRestart.addEventListener('click', () => {
-  Sound.click();
-  if (game.state === 'menu') return;
-  startGame();
-});
+            const count = heli.carrying.length;
+            const spread = (idx - (count - 1) / 2) * 16;
+            const rope = 46 + idx * 14;
+            const tx = heli.x + spread + Math.sin(time * 2 + idx) * 2;
+            const ty = heli.y + rope;
 
-btnSound.addEventListener('click', () => {
-  Sound.enabled = !Sound.enabled;
-  btnSound.classList.toggle('off', !Sound.enabled);
-  Store.set(SOUND_KEY, Sound.enabled ? '1' : '0');
-  if (Sound.enabled) Sound.click();
-});
+            p.vx += (tx - p.x) * 9.5 * dt;
+            p.vy += (ty - p.y) * 9.5 * dt;
+            p.vx *= 0.90;
+            p.vy *= 0.90;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
 
-/* --- boot -------------------------------------------------------- */
-function boot() {
-  const bestRaw = Store.get(BEST_KEY);
-  const best = bestRaw ? parseFloat(bestRaw) : null;
-  game.best = Number.isFinite(best) && best > 0 ? best : null;
+            p.y = Math.min(p.y, GROUND_Y - 4);
 
-  const soundPref = Store.get(SOUND_KEY);
-  if (soundPref === '0') {
-    Sound.enabled = false;
-    btnSound.classList.add('off');
-  }
+            const strain = dist(p.x, p.y, tx, ty);
+            if (strain > 70) {
+              panic += (strain - 70) * 0.025 * dt;
+            }
+          } else if (p.state === "falling") {
+            p.vy += 780 * dt;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
 
-  if (game.best) {
-    startFoot.textContent = 'Record personale: ' + formatTime(game.best) + ' · un dito, niente scroll';
-  }
+            p.x = clamp(p.x, 25, W - 25);
 
-  resizeCanvas();
-  // scena di sottofondo dietro al menu
-  sheep = [];
-  for (let i = 0; i < CONFIG.sheep.count; i++) {
-    sheep.push(makeSheep(rand(W * 0.2, W * 0.8), rand(H * 0.72, H * 0.9), i < 2));
-  }
-  ducks = [];
-  for (let i = 0; i < CONFIG.ducks.count; i++) ducks.push(makeDuck());
-  buildPenSpots(CONFIG.sheep.count);
+            const support = getSupportY(p.x) - 18;
+            if (p.y >= support) {
+              p.y = support;
+              p.vy = 0;
+              p.vx = 0;
+              p.state = "lost";
+              addParticle({
+                x: p.x,
+                y: p.y + 8,
+                vy: -20,
+                life: 0.35,
+                color: "rgba(255,255,255,0.8)",
+                size: 14,
+                text: "·"
+              });
+            }
+          } else if (p.state === "danger") {
+            if (p.carrier && p.carrier.type === "eagle") {
+              p.x = p.carrier.x;
+              p.y = p.carrier.y + 30;
+            } else {
+              p.state = "falling";
+              p.carrier = null;
+            }
+          } else if (p.state === "lost") {
+            p.bob += dt * 3;
+            p.y = getSupportY(p.x) - 18;
+          }
+        }
+      }
 
-  updateHud(true);
-  updateBarkChip();
-  game.state = 'menu';
-  requestAnimationFrame(frame);
-}
+      function nearestEnemy() {
+        let best = null;
+        let bestD = 560;
 
-/* debug / test automatici */
-window.__bch = {
-  game, dog, path: () => path, view, CONFIG,
-  get sheep() { return sheep; },
-  get ducks() { return ducks; },
-  step: (n, dt) => { for (let i = 0; i < n; i++) update(dt || 1 / 60); },
-  bark, startGame, newLevel, win,
-};
+        for (const e of eagles) {
+          if (e.stun > 0) continue;
+          const d = dist(heli.x, heli.y, e.x, e.y);
+          if (d < bestD) {
+            bestD = d;
+            best = e;
+          }
+        }
 
-/* resize: debounce per non ricalcolare lo sfondo a ogni pixel */
-let resizeT = null;
-function onResize() {
-  if (resizeT) clearTimeout(resizeT);
-  resizeT = setTimeout(() => {
-    const wasPlaying = game.state === 'playing';
-    const rel = sheep.map((s) => ({ x: s.x / W, y: s.y / H }));
-    const rd = { x: dog.x / W, y: dog.y / H };
-    resizeCanvas();
-    // riposiziona gli animali in proporzione al nuovo campo
-    for (let i = 0; i < sheep.length; i++) {
-      sheep[i].x = clamp(rel[i].x * W, 20, W - 20);
-      sheep[i].y = clamp(rel[i].y * H, view.fieldTop + 20, H - 20);
-    }
-    if (wasPlaying) {
-      dog.x = clamp(rd.x * W, 20, W - 20);
-      dog.y = clamp(rd.y * H, view.fieldTop + 20, H - 20);
-    }
-    path.length = 0;
-  }, 150);
-}
-window.addEventListener('resize', onResize);
-window.addEventListener('orientationchange', onResize);
-if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
+        for (const w of wolves) {
+          if (w.scare > 0) continue;
+          const d = dist(heli.x, heli.y, w.x, w.y);
+          if (d < bestD) {
+            bestD = d;
+            best = w;
+          }
+        }
 
-document.addEventListener('visibilitychange', () => { lastFrame = performance.now(); });
+        return best;
+      }
 
-boot();
-</script>
+      function eagleTargetValid(t) {
+        return t && (t.state === "lost" || t.state === "attached");
+      }
+
+      function findEagleTarget(e) {
+        let best = null;
+        let bestScore = 1e9;
+
+        for (const p of puppies) {
+          if (p.state !== "lost" && p.state !== "attached") continue;
+          const d = dist(e.x, e.y, p.x, p.y);
+          let score = d;
+          if (p.state === "attached") score -= 140;
+          if (d < 430 && score < bestScore) {
+            bestScore = score;
+            best = p;
+          }
+        }
+
+        return best;
+      }
+
+      function grabByEagle(e, t) {
+        if (!eagleTargetValid(t)) return;
+        if (t.state === "attached") removeFromHeli(t);
+        t.state = "danger";
+        t.carrier = e;
+        e.targetId = t.id;
+        e.state = "carry";
+        e.timer = 3.2;
+        panic += 26;
+        addParticle({
+          x: t.x,
+          y: t.y - 22,
+          vy: -55,
+          life: 0.75,
+          color: "#ff6b6b",
+          size: 22,
+          text: "❗"
+        });
+      }
+
+      function respawnEagle(e) {
+        e.x = 80 + Math.random() * (W - 160);
+        e.y = -50;
+        e.vx = 0;
+        e.vy = 0;
+        e.state = "patrol";
+        e.timer = 1.2 + Math.random() * 1.8;
+        e.targetId = null;
+        e.stun = 0;
+      }
+
+      function updateEagle(e, dt) {
+        e.flap += dt * (e.state === "dive" ? 18 : 9);
+
+        if (e.stun > 0) {
+          e.stun -= dt;
+          e.x += e.vx * dt;
+          e.y += e.vy * dt;
+          e.vx *= 0.96;
+          e.vy *= 0.96;
+          if (e.stun <= 0) {
+            e.state = "retreat";
+            e.targetId = null;
+          }
+          return;
+        }
+
+        if (e.state === "patrol") {
+          e.timer -= dt;
+          e.x += Math.cos(time * 0.6 + e.seed) * 50 * dt;
+          e.y = 75 + Math.sin(time * 0.8 + e.seed) * 25;
+          e.x = clamp(e.x, 40, W - 40);
+
+          if (e.timer <= 0) {
+            const t = findEagleTarget(e);
+            if (t) {
+              e.targetId = t.id;
+              e.state = "aim";
+              e.timer = 0.8;
+            } else {
+              e.timer = 1;
+            }
+          }
+        } else if (e.state === "aim") {
+          const t = getPuppy(e.targetId);
+          if (!eagleTargetValid(t)) {
+            e.state = "patrol";
+            e.timer = 1;
+            e.targetId = null;
+            return;
+          }
+
+          e.timer -= dt;
+          const tx = t.x;
+          const ty = t.y - 100;
+          e.x = lerp(e.x, tx, Math.min(1, dt * 2.0));
+          e.y = lerp(e.y, ty, Math.min(1, dt * 2.0));
+
+          if (e.timer <= 0) e.state = "dive";
+        } else if (e.state === "dive") {
+          const t = getPuppy(e.targetId);
+          if (!eagleTargetValid(t)) {
+            e.state = "patrol";
+            e.timer = 1;
+            e.targetId = null;
+            return;
+          }
+
+          const dx = t.x - e.x;
+          const dy = t.y - e.y;
+          const d = Math.hypot(dx, dy) || 1;
+          const speed = 250;
+
+          e.x += (dx / d) * speed * dt;
+          e.y += (dy / d) * speed * dt;
+
+          if (d < 34) {
+            grabByEagle(e, t);
+          }
+
+          if (e.y > H + 50 || d > 450) {
+            e.state = "retreat";
+            e.targetId = null;
+          }
+        } else if (e.state === "carry") {
+          const t = getPuppy(e.targetId);
+          if (!t || t.state !== "danger" || t.carrier !== e) {
+            e.state = "retreat";
+            e.targetId = null;
+            return;
+          }
+
+          e.timer -= dt;
+          t.x = e.x;
+          t.y = e.y + 30;
+
+          e.y -= 65 * dt;
+          e.x += Math.sin(time * 3 + e.seed) * 35 * dt;
+
+          if (e.y < 25 || e.timer <= 0) {
+            dropEaglePuppy(t, e);
+            e.state = "retreat";
+          }
+        } else if (e.state === "retreat") {
+          e.y -= 150 * dt;
+          e.x += Math.sin(time * 2 + e.seed) * 50 * dt;
+          if (e.y < -90) respawnEagle(e);
+        }
+      }
+
+      function findWolfTarget(w) {
+        let best = null;
+        let bestD = 340;
+
+        for (const p of puppies) {
+          if (p.state !== "lost") continue;
+          if (p.y < GROUND_Y - 110) continue; // troppo in alto per un lupo
+          const d = Math.abs(p.x - w.x) + Math.abs(p.y - w.y) * 0.45;
+          if (d < bestD) {
+            bestD = d;
+            best = p;
+          }
+        }
+
+        return best;
+      }
+
+      function wolfScarePuppy(t, w) {
+        const away = t.x < w.x ? -1 : 1;
+        t.x = clamp(t.x + away * 130, 40, W - 40);
+        t.y = getSupportY(t.x) - 18;
+        t.vx = 0;
+        t.vy = 0;
+        t.state = "lost";
+        panic += 16;
+        addParticle({
+          x: t.x,
+          y: t.y - 22,
+          vy: -50,
+          life: 0.7,
+          color: "#ff6b6b",
+          size: 20,
+          text: "!"
+        });
+        playDrop();
+      }
+
+      function updateWolf(w, dt) {
+        w.y = GROUND_Y - 28;
+
+        if (w.scare > 0) {
+          w.scare -= dt;
+          w.x += w.vx * dt;
+          w.vx *= 0.95;
+          if (w.x < 35) { w.x = 35; w.vx = Math.abs(w.vx); }
+          if (w.x > W - 35) { w.x = W - 35; w.vx = -Math.abs(w.vx); }
+          if (w.scare <= 0) {
+            w.state = "patrol";
+            w.timer = 1;
+          }
+          return;
+        }
+
+        if (w.state === "patrol") {
+          w.timer -= dt;
+          w.x += w.dir * w.speed * dt;
+
+          if (w.x < 50) { w.x = 50; w.dir = 1; }
+          if (w.x > W - 50) { w.x = W - 50; w.dir = -1; }
+
+          if (w.timer <= 0) {
+            const t = findWolfTarget(w);
+            if (t) {
+              w.targetId = t.id;
+              w.state = "chase";
+              w.timer = 0;
+            } else {
+              w.timer = 1;
+            }
+          }
+        } else if (w.state === "chase") {
+          const t = getPuppy(w.targetId);
+          if (!t || t.state !== "lost" || t.y < GROUND_Y - 110) {
+            w.state = "patrol";
+            w.timer = 1;
+            w.targetId = null;
+            return;
+          }
+
+          const dir = Math.sign(t.x - w.x) || 1;
+          w.dir = dir;
+          w.x += dir * w.speed * 1.35 * dt;
+          w.x = clamp(w.x, 35, W - 35);
+
+          if (Math.abs(t.x - w.x) < 45 && Math.abs(t.y - w.y) < 85) {
+            w.timer += dt;
+            if (w.timer > 1.8) {
+              wolfScarePuppy(t, w);
+              w.timer = 0;
+              w.scare = 0.7;
+              w.state = "patrol";
+              w.targetId = null;
+            }
+          } else {
+            w.timer = 0;
+          }
+        }
+      }
+
+      function updateEnemies(dt) {
+        for (const e of eagles) updateEagle(e, dt);
+        for (const w of wolves) updateWolf(w, dt);
+
+        // rinforzi progressivi per creare arco di tensione
+        if (rescued >= 2 && eagles.length < 2) eagles.push(makeEagle());
+        if (rescued >= 3 && wolves.length < 2) wolves.push(makeWolf());
+      }
+
+      function hitEagle(e, b) {
+        e.stun = 2.2;
+        e.state = "stunned";
+        e.vx = b.vx * 0.06;
+        e.vy = -70;
+        stats.enemiesStunned++;
+
+        const t = getPuppy(e.targetId);
+        if (t && t.state === "danger" && t.carrier === e) {
+          dropEaglePuppy(t, e);
+        }
+
+        addParticle({
+          x: e.x,
+          y: e.y - 18,
+          vy: -50,
+          life: 0.65,
+          color: "#fff",
+          size: 20,
+          text: "💥"
+        });
+        playHit();
+      }
+
+      function hitWolf(w, b) {
+        w.scare = 1.8;
+        w.state = "scared";
+        w.vx = Math.sign(w.x - b.x) * 170;
+        stats.enemiesStunned++;
+
+        addParticle({
+          x: w.x,
+          y: w.y - 22,
+          vy: -45,
+          life: 0.6,
+          color: "#fff",
+          size: 18,
+          text: "💢"
+        });
+        playHit();
+      }
+
+      function updateBullets(dt) {
+        for (let i = bullets.length - 1; i >= 0; i--) {
+          const b = bullets[i];
+          b.life -= dt;
+          b.x += b.vx * dt;
+          b.y += b.vy * dt;
+          b.vy += 30 * dt;
+
+          if (
+            b.life <= 0 ||
+            b.x < -60 || b.x > W + 60 ||
+            b.y < -60 || b.y > H + 60
+          ) {
+            bullets.splice(i, 1);
+            continue;
+          }
+
+          let hit = false;
+
+          for (const e of eagles) {
+            if (e.stun > 0) continue;
+            if (dist(b.x, b.y, e.x, e.y) < 36) {
+              hitEagle(e, b);
+              hit = true;
+              break;
+            }
+          }
+
+          if (!hit) {
+            for (const w of wolves) {
+              if (w.scare > 0) continue;
+              if (dist(b.x, b.y, w.x, w.y) < 34) {
+                hitWolf(w, b);
+                hit = true;
+                break;
+              }
+            }
+          }
+
+          if (hit) bullets.splice(i, 1);
+        }
+      }
+
+      function updatePanic(dt) {
+        let inc = 0;
+
+        if (heli.carrying.length > 0) {
+          inc += heli.jerk * 0.0022 + heli.carrying.length * 0.55;
+        }
+
+        for (const e of eagles) {
+          if (e.stun <= 0 && (e.state === "aim" || e.state === "dive" || e.state === "carry")) {
+            if (dist(e.x, e.y, heli.x, heli.y) < 240) inc += 4.5;
+          }
+        }
+
+        for (const w of wolves) {
+          if (w.scare <= 0 && w.state === "chase") {
+            const t = getPuppy(w.targetId);
+            if (t && dist(w.x, w.y, t.x, t.y) < 180) inc += 3.5;
+          }
+        }
+
+        if (isInDoghouseZone(heli)) inc -= 18;
+
+        if (inc > 0) panic += inc * dt;
+        else panic -= 7 * dt;
+
+        panic = clamp(panic, 0, 100);
+        stats.maxPanic = Math.max(stats.maxPanic, panic);
+
+        if (
+          panic > 88 &&
+          heli.carrying.length > 0 &&
+          Math.random() < (panic - 88) * 0.03 * dt
+        ) {
+          const id = heli.carrying[heli.carrying.length - 1];
+          const p = getPuppy(id);
+          if (p) dropPuppyToGround(p, "panic");
+        }
+      }
+
+      function tryFire() {
+        if (!running || won) return;
+        if (overheat || heat >= 100) return;
+        if (time - lastFire < 0.16) return;
+
+        lastFire = time;
+        heat = Math.min(100, heat + 9);
+        if (heat >= 100) overheat = true;
+        stats.shots++;
+
+        const angle = heli.aimAngle;
+        const mx = heli.x + Math.cos(angle) * 46;
+        const my = heli.y + Math.sin(angle) * 46;
+
+        bullets.push({
+          x: mx,
+          y: my,
+          vx: Math.cos(angle) * 540 + heli.vx * 0.12,
+          vy: Math.sin(angle) * 540 + heli.vy * 0.12,
+          life: 1.6,
+          r: 7
+        });
+
+        addParticle({
+          x: mx,
+          y: my,
+          vx: Math.cos(angle) * 90,
+          vy: Math.sin(angle) * 90,
+          life: 0.14,
+          color: "#fff7ae",
+          size: 12
+        });
+
+        heli.vx -= Math.cos(angle) * 12;
+        heli.vy -= Math.sin(angle) * 8;
+
+        playShoot();
+      }
+
+      function update(dt) {
+        time += dt;
+
+        if (heat > 0) heat = Math.max(0, heat - 20 * dt);
+        if (overheat && heat < 45) overheat = false;
+
+        updateHeli(dt);
+        updateSling(dt);
+        updatePuppies(dt);
+        updateEnemies(dt);
+        updateBullets(dt);
+        updateParticles(dt);
+        updatePanic(dt);
+
+        if (input.fire) tryFire();
+
+        if (rescued >= 5 && !won) winGame();
+      }
+
+      // ---------- draw ----------
+      function drawSky() {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, "#79c7ff");
+        g.addColorStop(0.65, "#cdeeff");
+        g.addColorStop(1, "#f7fbff");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, H);
+
+        ctx.fillStyle = "rgba(255, 245, 150, 0.95)";
+        ctx.beginPath();
+        ctx.arc(100, 90, 38, 0, PI2);
+        ctx.fill();
+      }
+
+      function drawCloud(x, y, s) {
+        ctx.save();
+        ctx.globalAlpha = 0.78;
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.ellipse(x, y, 32 * s, 18 * s, 0, 0, PI2);
+        ctx.ellipse(x + 26 * s, y + 5 * s, 24 * s, 15 * s, 0, 0, PI2);
+        ctx.ellipse(x - 24 * s, y + 6 * s, 22 * s, 14 * s, 0, 0, PI2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawClouds() {
+        const offsets = [0, 320, 680];
+        offsets.forEach((off, i) => {
+          const x = ((time * (10 + i * 4) + off) % (W + 240)) - 120;
+          drawCloud(x, 85 + i * 42, 0.85 + i * 0.12);
+        });
+      }
+
+      function drawHills() {
+        ctx.fillStyle = "#9bd486";
+        ctx.beginPath();
+        ctx.moveTo(0, GROUND_Y);
+        ctx.quadraticCurveTo(W * 0.22, GROUND_Y - 95, W * 0.48, GROUND_Y);
+        ctx.quadraticCurveTo(W * 0.72, GROUND_Y - 70, W, GROUND_Y);
+        ctx.lineTo(W, H);
+        ctx.lineTo(0, H);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "#82c46d";
+        ctx.beginPath();
+        ctx.moveTo(0, GROUND_Y + 12);
+        ctx.quadraticCurveTo(W * 0.3, GROUND_Y - 45, W * 0.62, GROUND_Y + 12);
+        ctx.quadraticCurveTo(W * 0.82, GROUND_Y - 20, W, GROUND_Y + 12);
+        ctx.lineTo(W, H);
+        ctx.lineTo(0, H);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      function drawBuildings() {
+        for (const b of BUILDINGS) {
+          const h = GROUND_Y - b.y;
+
+          ctx.fillStyle = "#7a5c49";
+          ctx.fillRect(b.x, b.y, b.w, h);
+
+          ctx.fillStyle = "#5d4037";
+          ctx.fillRect(b.x - 5, b.y - 9, b.w + 10, 10);
+
+          ctx.fillStyle = "rgba(255, 235, 150, 0.75)";
+          for (let wy = b.y + 20; wy < GROUND_Y - 24; wy += 30) {
+            for (let wx = b.x + 14; wx < b.x + b.w - 18; wx += 30) {
+              ctx.fillRect(wx, wy, 14, 16);
+            }
+          }
+        }
+      }
+
+      function drawGround() {
+        ctx.fillStyle = "#6aa84f";
+        ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+
+        ctx.fillStyle = "rgba(0,0,0,0.08)";
+        for (let x = 0; x < W; x += 42) {
+          ctx.fillRect(x, GROUND_Y + 18, 22, 4);
+        }
+      }
+
+      function drawMiniPuppy(x, y, fur, patch, scale = 0.55) {
+        drawPuppySprite(x, y, fur, patch, scale, "happy", time * 6 + x);
+      }
+
+      function drawDoghouse() {
+        const d = DOGHOUSE;
+
+        ctx.fillStyle = "#8d5524";
+        rr(d.x, d.y + 28, d.w, d.h - 28, 10);
+        ctx.fill();
+
+        ctx.fillStyle = "#c0392b";
+        ctx.beginPath();
+        ctx.moveTo(d.x - 12, d.y + 34);
+        ctx.lineTo(d.x + d.w / 2, d.y - 14);
+        ctx.lineTo(d.x + d.w + 12, d.y + 34);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "#2c1810";
+        ctx.beginPath();
+        ctx.arc(d.x + d.w / 2, d.y + d.h - 24, 28, Math.PI, 0);
+        ctx.rect(d.x + d.w / 2 - 28, d.y + d.h - 24, 56, 24);
+        ctx.fill();
+
+        ctx.fillStyle = "#fff1c9";
+        ctx.font = "bold 16px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText("RORY", d.x + d.w / 2, d.y + 18);
+
+        for (let i = 0; i < rescued; i++) {
+          const data = PUPPY_DATA[i] || PUPPY_DATA[0];
+          drawMiniPuppy(
+            d.x + 32 + i * 30,
+            d.y + d.h - 26,
+            data.fur,
+            data.patch,
+            0.5
+          );
+        }
+      }
+
+      function drawPuppySprite(x, y, fur, patch, scale = 1, face = "happy", tailPhase = 0) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+
+        // coda
+        ctx.strokeStyle = fur;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(-12, 3);
+        ctx.quadraticCurveTo(-20, -4 + Math.sin(tailPhase) * 6, -17, 8);
+        ctx.stroke();
+
+        // corpo
+        ctx.fillStyle = fur;
+        ctx.beginPath();
+        ctx.ellipse(0, 4, 14, 10, 0, 0, PI2);
+        ctx.fill();
+
+        // macchia
+        ctx.fillStyle = patch;
+        ctx.beginPath();
+        ctx.ellipse(4, 2, 7, 6, 0.2, 0, PI2);
+        ctx.fill();
+
+        // testa
+        ctx.fillStyle = fur;
+        ctx.beginPath();
+        ctx.arc(-2, -8, 10, 0, PI2);
+        ctx.fill();
+
+        // orecchie
+        ctx.fillStyle = patch;
+        ctx.beginPath();
+        ctx.moveTo(-11, -13);
+        ctx.lineTo(-4, -19);
+        ctx.lineTo(-2, -10);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = fur;
+        ctx.beginPath();
+        ctx.moveTo(7, -13);
+        ctx.lineTo(12, -19);
+        ctx.lineTo(10, -10);
+        ctx.closePath();
+        ctx.fill();
+
+        // macchia occhio
+        ctx.fillStyle = patch;
+        ctx.beginPath();
+        ctx.ellipse(-5, -10, 4, 3, 0, 0, PI2);
+        ctx.fill();
+
+        // occhi
+        ctx.fillStyle = "#1e1e1e";
+        const eyeR = face === "scared" ? 2.3 : 1.7;
+        ctx.beginPath();
+        ctx.arc(-5, -8, eyeR, 0, PI2);
+        ctx.arc(2, -8, eyeR, 0, PI2);
+        ctx.fill();
+
+        // naso
+        ctx.beginPath();
+        ctx.ellipse(-1, -4, 2.2, 1.6, 0, 0, PI2);
+        ctx.fill();
+
+        // bocca
+        ctx.strokeStyle = "#1e1e1e";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (face === "scared") {
+          ctx.arc(-1, -2, 2, 0, PI2);
+        } else {
+          ctx.moveTo(-1, -3);
+          ctx.lineTo(-1, -1);
+          ctx.moveTo(-3, 0);
+          ctx.quadraticCurveTo(-1, 2, 1, 0);
+        }
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function drawLostMarkers() {
+        ctx.save();
+        ctx.textAlign = "center";
+        for (const p of puppies) {
+          if (p.state !== "lost") continue;
+          const pulse = Math.sin(time * 4 + p.bob);
+          ctx.strokeStyle = `rgba(255,255,255,${0.18 + 0.12 * pulse})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 28 + pulse * 3, 0, PI2);
+          ctx.stroke();
+
+          ctx.fillStyle = "rgba(255,255,255,0.82)";
+          ctx.font = "11px system-ui";
+          ctx.fillText(p.name, p.x, p.y - 34);
+        }
+        ctx.restore();
+      }
+
+      function drawRopes() {
+        ctx.save();
+        ctx.strokeStyle = "rgba(245,245,245,0.78)";
+        ctx.lineWidth = 2;
+        for (const p of puppies) {
+          if (p.state !== "attached") continue;
+          const hx = heli.x;
+          const hy = heli.y + 32;
+          const tx = p.x;
+          const ty = p.y - 12;
+          const mx = (hx + tx) / 2;
+          const my = (hy + ty) / 2 + 10;
+          ctx.beginPath();
+          ctx.moveTo(hx, hy);
+          ctx.quadraticCurveTo(mx, my, tx, ty);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawPuppies() {
+        for (const p of puppies) {
+          if (p.state === "rescued") continue;
+          const face = (p.state === "danger" || panic > 70) ? "scared" : "happy";
+          drawPuppySprite(p.x, p.y, p.fur, p.patch, 1, face, time * 8 + p.id);
+
+          if (p.state === "danger") {
+            ctx.save();
+            ctx.fillStyle = "#ff4d4d";
+            ctx.font = "bold 22px system-ui";
+            ctx.textAlign = "center";
+            ctx.fillText("❗", p.x + 18, p.y - 22);
+            ctx.restore();
+          }
+        }
+      }
+
+      function drawRoryFace(x, y, s = 1) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(s, s);
+
+        // testa bianca
+        ctx.fillStyle = "#fffaf5";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 11, 10, 0, 0, PI2);
+        ctx.fill();
+
+        // macchia rossa
+        ctx.fillStyle = "#b5462d";
+        ctx.beginPath();
+        ctx.ellipse(-5, -3, 6, 5, 0, 0, PI2);
+        ctx.fill();
+
+        // orecchie
+        ctx.fillStyle = "#b5462d";
+        ctx.beginPath();
+        ctx.moveTo(-9, -7);
+        ctx.lineTo(-3, -14);
+        ctx.lineTo(-1, -6);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "#fffaf5";
+        ctx.beginPath();
+        ctx.moveTo(9, -7);
+        ctx.lineTo(3, -14);
+        ctx.lineTo(1, -6);
+        ctx.closePath();
+        ctx.fill();
+
+        // occhi
+        ctx.fillStyle = "#1b1b1b";
+        ctx.beginPath();
+        ctx.arc(-4, -1, 1.7, 0, PI2);
+        ctx.arc(4, -1, 1.7, 0, PI2);
+        ctx.fill();
+
+        // naso
+        ctx.beginPath();
+        ctx.ellipse(0, 4, 2.2, 1.6, 0, 0, PI2);
+        ctx.fill();
+
+        // bocca
+        ctx.strokeStyle = "#1b1b1b";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, 5);
+        ctx.lineTo(0, 7);
+        ctx.moveTo(-2, 8);
+        ctx.quadraticCurveTo(0, 9, 2, 8);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function drawHeli() {
+        ctx.save();
+        ctx.translate(heli.x, heli.y);
+        ctx.rotate(heli.angle);
+
+        // sci
+        ctx.strokeStyle = "#444";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(-24, 20);
+        ctx.lineTo(24, 20);
+        ctx.moveTo(-18, 14);
+        ctx.lineTo(-18, 20);
+        ctx.moveTo(18, 14);
+        ctx.lineTo(18, 20);
+        ctx.stroke();
+
+        // kodone
+        ctx.fillStyle = "#d35400";
+        rr(-58, -6, 45, 10, 4);
+        ctx.fill();
+
+        // deriva
+        ctx.fillStyle = "#b5462d";
+        ctx.beginPath();
+        ctx.moveTo(-58, -6);
+        ctx.lineTo(-68, -20);
+        ctx.lineTo(-50, -6);
+        ctx.closePath();
+        ctx.fill();
+
+        // corpo
+        ctx.fillStyle = "#e67e22";
+        rr(-28, -16, 58, 34, 14);
+        ctx.fill();
+
+        // cockpit
+        ctx.fillStyle = "#fff8f2";
+        rr(-18, -12, 34, 22, 10);
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(120, 200, 255, 0.55)";
+        rr(-8, -12, 26, 20, 8);
+        ctx.fill();
+
+        // Rory
+        drawRoryFace(3, -2, 1.05);
+
+        // cannone orientabile
+        ctx.save();
+        ctx.rotate(heli.aimAngle - heli.angle);
+        ctx.fillStyle = "#555";
+        rr(16, 4, 28, 8, 4);
+        ctx.fill();
+        ctx.fillStyle = "#333";
+        ctx.beginPath();
+        ctx.arc(46, 8, 4.5, 0, PI2);
+        ctx.fill();
+        ctx.restore();
+
+        // gancio
+        ctx.strokeStyle = "#aaa";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 18);
+        ctx.lineTo(0, 30);
+        ctx.stroke();
+        ctx.fillStyle = "#bbb";
+        ctx.beginPath();
+        ctx.arc(0, 32, 3, 0, PI2);
+        ctx.fill();
+
+        // mozzo rotore
+        ctx.fillStyle = "#555";
+        ctx.fillRect(-2, -26, 4, 10);
+
+        // rotore
+        ctx.save();
+        ctx.translate(0, -26);
+        ctx.rotate(heli.rotor);
+        ctx.strokeStyle = "rgba(30,30,30,0.45)";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(-58, 0);
+        ctx.lineTo(58, 0);
+        ctx.moveTo(0, -58);
+        ctx.lineTo(0, 58);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.restore();
+      }
+
+      function drawEagle(e) {
+        ctx.save();
+        ctx.translate(e.x, e.y);
+
+        const flap = Math.sin(e.flap) * 10;
+
+        ctx.fillStyle = "#6d4c33";
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(-18, -22 - flap, -42, -4 - flap * 0.5);
+        ctx.quadraticCurveTo(-22, 6, 0, 8);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(18, -22 - flap, 42, -4 - flap * 0.5);
+        ctx.quadraticCurveTo(22, 6, 0, 8);
+        ctx.fill();
+
+        ctx.fillStyle = "#8b5e3c";
+        ctx.beginPath();
+        ctx.ellipse(0, 3, 15, 11, 0, 0, PI2);
+        ctx.fill();
+
+        ctx.fillStyle = "#f8f8f8";
+        ctx.beginPath();
+        ctx.arc(11, -4, 8, 0, PI2);
+        ctx.fill();
+
+        ctx.fillStyle = "#f1c40f";
+        ctx.beginPath();
+        ctx.moveTo(17, -4);
+        ctx.lineTo(25, -1);
+        ctx.lineTo(17, 2);
+        ctx.closePath();
+        ctx.fill();
+
+        if (e.stun > 0) {
+          ctx.strokeStyle = "#111";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(8, -7);
+          ctx.lineTo(12, -3);
+          ctx.moveTo(12, -7);
+          ctx.lineTo(8, -3);
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = "#111";
+          ctx.beginPath();
+          ctx.arc(12, -5, 1.8, 0, PI2);
+          ctx.fill();
+        }
+
+        if (e.state === "carry") {
+          ctx.strokeStyle = "#f1c40f";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-2, 12);
+          ctx.lineTo(-2, 20);
+          ctx.moveTo(4, 12);
+          ctx.lineTo(4, 20);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+
+        if ((e.state === "aim" || e.state === "dive") && e.targetId) {
+          const t = getPuppy(e.targetId);
+          if (t && eagleTargetValid(t)) {
+            ctx.save();
+            ctx.strokeStyle = "rgba(231,76,60,0.75)";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 6]);
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, 32 + Math.sin(time * 10) * 3, 0, PI2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = "#e74c3c";
+            ctx.font = "bold 22px system-ui";
+            ctx.textAlign = "center";
+            ctx.fillText("!", e.x, e.y - 28);
+            ctx.restore();
+          }
+        }
+
+        if (e.stun > 0) {
+          ctx.save();
+          ctx.fillStyle = "#ffd166";
+          ctx.font = "18px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillText("★", e.x - 10, e.y - 22);
+          ctx.fillText("★", e.x + 12, e.y - 18);
+          ctx.restore();
+        }
+      }
+
+      function drawWolf(w) {
+        ctx.save();
+        ctx.translate(w.x, w.y);
+        ctx.scale(w.dir < 0 ? -1 : 1, 1);
+
+        ctx.strokeStyle = "#7f8c8d";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(-20, 0);
+        ctx.quadraticCurveTo(-32, -8 + Math.sin(time * 5) * 3, -28, 6);
+        ctx.stroke();
+
+        ctx.fillStyle = "#95a5a6";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 24, 13, 0, 0, PI2);
+        ctx.fill();
+
+        ctx.fillStyle = "#aab7b8";
+        ctx.beginPath();
+        ctx.arc(20, -6, 11, 0, PI2);
+        ctx.fill();
+
+        ctx.fillStyle = "#7f8c8d";
+        ctx.beginPath();
+        ctx.moveTo(12, -14);
+        ctx.lineTo(16, -24);
+        ctx.lineTo(22, -14);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(24, -14);
+        ctx.lineTo(28, -24);
+        ctx.lineTo(32, -14);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "#d0d7d8";
+        ctx.beginPath();
+        ctx.ellipse(28, -3, 7, 5, 0, 0, PI2);
+        ctx.fill();
+
+        ctx.fillStyle = w.scare > 0 ? "#3498db" : "#222";
+        ctx.beginPath();
+        ctx.arc(22, -8, 2, 0, PI2);
+        ctx.fill();
+
+        ctx.fillStyle = "#222";
+        ctx.beginPath();
+        ctx.arc(33, -3, 2, 0, PI2);
+        ctx.fill();
+
+        ctx.restore();
+
+        if (w.scare > 0) {
+          ctx.save();
+          ctx.fillStyle = "#74c0fc";
+          ctx.font = "18px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillText("💧", w.x + 12, w.y - 26);
+          ctx.restore();
+        }
+
+        if (w.state === "chase" && w.targetId) {
+          const t = getPuppy(w.targetId);
+          if (t && t.state === "lost") {
+            ctx.save();
+            ctx.fillStyle = "#e74c3c";
+            ctx.font = "bold 20px system-ui";
+            ctx.textAlign = "center";
+            ctx.fillText("!", w.x, w.y - 34);
+            ctx.restore();
+          }
+        }
+      }
+
+      function drawBullets() {
+        for (const b of bullets) {
+          ctx.save();
+          ctx.fillStyle = "#fff";
+          ctx.strokeStyle = "rgba(0,0,0,0.18)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, b.r, 0, PI2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#ff7aa2";
+          ctx.beginPath();
+          ctx.arc(b.x - 2, b.y - 2, 2, 0, PI2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      function drawParticles() {
+        for (const p of particles) {
+          ctx.save();
+          ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
+          ctx.fillStyle = p.color;
+          if (p.text) {
+            ctx.font = `bold ${p.size}px system-ui`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(p.text, p.x, p.y);
+          } else {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, PI2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+      }
+
+      function drawBar(x, y, w, h, val, label, color) {
+        ctx.save();
+        ctx.fillStyle = "rgba(255,255,255,0.18)";
+        rr(x, y, w, h, h / 2);
+        ctx.fill();
+
+        ctx.fillStyle = color;
+        rr(x, y, Math.max(0, w * clamp(val, 0, 1)), h, h / 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#fff";
+        ctx.font = "11px system-ui";
+        ctx.textAlign = "left";
+        ctx.fillText(label, x, y - 5);
+        ctx.restore();
+      }
+
+      function drawHUD() {
+        ctx.save();
+        ctx.fillStyle = "rgba(12, 18, 28, 0.62)";
+        rr(12, 12, 292, 110, 14);
+        ctx.fill();
+
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 18px system-ui";
+        ctx.textAlign = "left";
+        ctx.fillText("RORY & I 5 CUCCIOLI", 24, 36);
+
+        ctx.font = "14px system-ui";
+        ctx.fillText(`Cuccioli: ${rescued}/5   Tempo: ${Math.round(time)}s`, 24, 56);
+
+        const panicColor = panic < 50 ? "#2ecc71" : panic < 80 ? "#f1c40f" : "#e74c3c";
+        drawBar(24, 76, 190, 12, panic / 100, "PANICO", panicColor);
+
+        const heatColor = overheat ? "#e74c3c" : "#f39c12";
+        drawBar(24, 102, 190, 12, heat / 100, overheat ? "CALORE - RAFFREDDAMENTO" : "CALORE", heatColor);
+
+        ctx.fillStyle = "rgba(255,255,255,0.82)";
+        ctx.font = "12px system-ui";
+        ctx.fillText(heli.carrying.length ? `A bordo: ${heli.carrying.length}` : "A bordo: 0", 228, 88);
+
+        ctx.restore();
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+
+        drawSky();
+        drawClouds();
+        drawHills();
+        drawBuildings();
+        drawGround();
+        drawDoghouse();
+
+        drawLostMarkers();
+        drawRopes();
+        drawPuppies();
+
+        for (const e of eagles) drawEagle(e);
+        for (const w of wolves) drawWolf(w);
+
+        drawHeli();
+        drawBullets();
+        drawParticles();
+        drawHUD();
+      }
+
+      // ---------- loop ----------
+      function loop(ts) {
+        if (!lastTimestamp) lastTimestamp = ts;
+        const dt = Math.min((ts - lastTimestamp) / 1000, 0.033);
+        lastTimestamp = ts;
+
+        if (running && !won) update(dt);
+        draw();
+
+        requestAnimationFrame(loop);
+      }
+
+      // ---------- input ----------
+      canvas.addEventListener("pointerdown", (e) => {
+        if (!running || won) return;
+        e.preventDefault();
+        const p = pointerToWorld(e);
+        input.pointerDown = true;
+        input.pointerId = e.pointerId;
+        input.pointerX = p.x;
+        input.pointerY = p.y;
+        input.startX = p.x;
+        input.startY = p.y;
+        input.startT = performance.now();
+        input.moved = false;
+        canvas.setPointerCapture(e.pointerId);
+      });
+
+      canvas.addEventListener("pointermove", (e) => {
+        if (!input.pointerDown || e.pointerId !== input.pointerId) return;
+        e.preventDefault();
+        const p = pointerToWorld(e);
+        input.pointerX = p.x;
+        input.pointerY = p.y;
+        if (dist(p.x, p.y, input.startX, input.startY) > 10) {
+          input.moved = true;
+        }
+      });
+
+      canvas.addEventListener("pointerup", (e) => {
+        if (!input.pointerDown || e.pointerId !== input.pointerId) return;
+        e.preventDefault();
+        const p = pointerToWorld(e);
+        input.pointerDown = false;
+
+        if (!input.moved) {
+          // tap: vai lì; se sei a terra, decolla
+          if (heli.onGround) {
+            heli.target = { x: p.x, y: Math.min(p.y, HELI_GROUND_Y - 140) };
+          } else {
+            heli.target = { x: p.x, y: p.y };
+          }
+        } else {
+          // rilascio dopo drag: hover
+          heli.target = null;
+        }
+      });
+
+      canvas.addEventListener("pointercancel", () => {
+        input.pointerDown = false;
+        heli.target = null;
+      });
+
+      canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+      function bindHoldButton(btn, setter) {
+        btn.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setter(true);
+        });
+        btn.addEventListener("pointerup", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setter(false);
+        });
+        btn.addEventListener("pointercancel", () => setter(false));
+        btn.addEventListener("pointerleave", () => setter(false));
+        btn.addEventListener("contextmenu", (e) => e.preventDefault());
+      }
+
+      bindHoldButton(slingBtn, (v) => input.sling = v);
+      bindHoldButton(fireBtn, (v) => input.fire = v);
+
+      window.addEventListener("keydown", (e) => {
+        if (e.code === "Space") {
+          input.fire = true;
+          e.preventDefault();
+        }
+        if (e.code === "KeyS") {
+          input.sling = true;
+        }
+      });
+
+      window.addEventListener("keyup", (e) => {
+        if (e.code === "Space") input.fire = false;
+        if (e.code === "KeyS") input.sling = false;
+      });
+
+      startBtn.addEventListener("click", () => {
+        initAudio();
+        resetGame();
+        running = true;
+        startScreen.classList.add("hidden");
+        winScreen.classList.add("hidden");
+      });
+
+      againBtn.addEventListener("click", () => {
+        initAudio();
+        resetGame();
+        running = true;
+        winScreen.classList.add("hidden");
+      });
+
+      async function shareResult() {
+        const text =
+          `Ho salvato ${rescued}/5 cuccioli con Rory! 🚁🐶 ` +
+          `Tempo: ${Math.round(time)}s, panico max ${Math.round(stats.maxPanic)}%, ` +
+          `predatori storditi ${stats.enemiesStunned}. Prova anche tu!`;
+        const url = window.location.href;
+
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: "Rory & I 5 Cuccioli",
+              text,
+              url
+            });
+          } catch (err) {}
+        } else {
+          try {
+            await navigator.clipboard.writeText(text + " " + url);
+            shareBtn.textContent = "COPIATO ✓";
+            setTimeout(() => shareBtn.textContent = "CONDIVIDI 📣", 1500);
+          } catch (err) {
+            alert(text + "\n\n" + url);
+          }
+        }
+      }
+
+      shareBtn.addEventListener("click", shareResult);
+
+      // avvio
+      resetGame();
+      requestAnimationFrame(loop);
+    })();
+  </script>
 </body>
 </html>
