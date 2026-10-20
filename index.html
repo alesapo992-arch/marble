@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>SEI POSTI · Prototype corretto</title>
+  <title>Border Collie Herding · Draw-to-move</title>
   <style>
     html, body {
       margin: 0;
       height: 100%;
       overflow: hidden;
-      background: #0b1020;
+      background: #173d1c;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       user-select: none;
       -webkit-user-select: none;
@@ -26,10 +26,10 @@
 
     #restart {
       position: fixed;
-      top: max(74px, env(safe-area-inset-top));
+      top: max(12px, env(safe-area-inset-top));
       right: 12px;
       z-index: 20;
-      background: rgba(20, 26, 40, 0.92);
+      background: rgba(15, 28, 18, 0.88);
       color: #fff;
       border: 1px solid rgba(255,255,255,0.25);
       border-radius: 12px;
@@ -44,7 +44,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(4, 7, 14, 0.84);
+      background: rgba(4, 12, 6, 0.78);
       z-index: 30;
       padding: 20px;
     }
@@ -54,7 +54,7 @@
       width: 100%;
       color: #fff;
       text-align: center;
-      background: rgba(15, 22, 38, 0.94);
+      background: rgba(12, 32, 18, 0.94);
       border: 1px solid rgba(255,255,255,0.14);
       border-radius: 20px;
       padding: 26px 20px;
@@ -63,7 +63,7 @@
 
     #overlayCard h1 {
       margin: 0 0 8px;
-      font-size: 34px;
+      font-size: 32px;
       letter-spacing: 1px;
     }
 
@@ -81,8 +81,8 @@
       padding: 14px 24px;
       font-size: 20px;
       font-weight: 800;
-      color: #081018;
-      background: #67e8f9;
+      color: #07130a;
+      background: #86efac;
       touch-action: manipulation;
     }
 
@@ -98,19 +98,16 @@
 
   <div id="overlay">
     <div id="overlayCard">
-      <h1 id="ovTitle">SEI POSTI</h1>
+      <h1 id="ovTitle">BORDER COLLIE HERDING</h1>
       <p id="ovBody">
-        Prototype corretto · flight feel<br><br>
-        <b>TRASCINA</b> = muovi l’elicottero<br>
-        <b>RILASCIA</b> = hover<br>
-        <b>TAP</b> = vai lì / decollo se sei a terra<br>
-        <b>TIENI FERMO</b> = verricello<br>
-        <b>ATTERRA SULLA BASE</b> = scarico automatico<br><br>
-        Porta più persone possibile dal TETTO alla BASE.<br>
-        Se voli troppo brusco, il carico va in PANICO.
+        Prototype draw-to-move<br><br>
+        <b>DISEGNA</b> il percorso del Border Collie<br>
+        <b>TAP RAPIDO</b> = abbaio / morso alle caviglie<br>
+        <b>OBIETTIVO</b> = porta tutte le pecore nel recinto<br><br>
+        Più sei veloce, migliore è il tempo finale.
       </p>
-      <button id="ovBtn">DECOLLA ▶</button>
-      <p class="small">Niente AI · niente arte · solo manovrabilità e atterraggio</p>
+      <button id="ovBtn">INIZIA ▶</button>
+      <p class="small">Niente AI · grafica placeholder · solo calibrazione movimento e gregge</p>
     </div>
   </div>
 
@@ -126,40 +123,66 @@
     const restartBtn = document.getElementById('restart');
 
     // ------------------------------------------------------------
-    // COSTANTI TUNING
+    // COSTANTI DI CALIBRAZIONE
     // ------------------------------------------------------------
-    const TOTAL = 12;
-    const CAP = 6;
 
-    const K = 9.5;
-    const DAMP = 6.4;
-    const MAX_ACCEL = 1900;
-    const MAX_SPEED = 430;
+    // Cane
+    const DOG_SPEED = 285;
+    const DOG_STEER = 9.5;
+    const DOG_LOOKAHEAD = 46;
 
-    const PANIC_ACCEL_THRESHOLD = 950;
-    const PANIC_SPEED_THRESHOLD = 340;
+    // Disegno percorso
+    const DRAW_MIN_POINT_DIST = 10;
+    const PATH_PRUNE_RADIUS = 16;
+
+    // Abbaio / morso
+    const BARK_TIME = 0.45;
+    const DOG_RADIUS = 98;
+    const BARK_RADIUS = 185;
+    const FLEE_FORCE = 520;
+    const BARK_FORCE = 1150;
+
+    // Pecore
+    const SHEEP_COUNT = 8;
+    const SHEEP_MAX_SPEED = 125;
+    const SHEEP_MAX_SPEED_PANIC = 195;
+    const PERCEPTION = 78;
+    const SEPARATION_DIST = 30;
+
+    const COHESION = 1.35;
+    const ALIGNMENT = 2.1;
+    const SEPARATION = 210;
+
+    const PEN_PULL_ACTIVE = 56;
+    const PEN_PULL_NEAR = 30;
+    const BOUNDARY_FORCE = 620;
+    const FRICTION = 1.35;
 
     // ------------------------------------------------------------
-    // WORLD / RESIZE
+    // VIEW / RESIZE
     // ------------------------------------------------------------
     let dpr = 1;
     let viewW = 0;
     let viewH = 0;
-    let worldW = 0;
-    let groundY = 0;
-    let padX = 180;
-    let roofX = 0;
-    let roofY = 0;
-    let landedY = 0;
 
-    let landed = false;
+    const pen = {
+      x: 0,
+      y: 0,
+      w: 0,
+      h: 0
+    };
 
-    const heli = {
+    const dog = {
       x: 0,
       y: 0,
       vx: 0,
-      vy: 0
+      vy: 0,
+      angle: -Math.PI / 2,
+      bark: 0
     };
+
+    let sheep = [];
+    let path = [];
 
     function resize() {
       dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -173,153 +196,138 @@
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      worldW = Math.max(1200, viewW + 800);
-      groundY = viewH - 84;
-      padX = Math.min(190, worldW * 0.16);
-      roofX = worldW - 230;
-      roofY = Math.max(96, groundY - 190);
-      landedY = groundY - 28;
+      pen.w = Math.min(300, viewW * 0.68);
+      pen.h = Math.max(110, viewH * 0.16);
+      pen.x = (viewW - pen.w) / 2;
+      pen.y = Math.max(68, viewH * 0.10);
 
-      if (landed) {
-        heli.y = landedY;
+      dog.x = clamp(dog.x || viewW / 2, 18, viewW - 18);
+      dog.y = clamp(dog.y || viewH - 120, 18, viewH - 18);
+
+      for (const s of sheep) {
+        s.x = clamp(s.x, 16, viewW - 16);
+        s.y = clamp(s.y, 16, viewH - 16);
       }
-
-      heli.x = Math.max(30, Math.min(worldW - 30, heli.x || padX + 160));
-      heli.y = Math.max(64, Math.min(groundY - 18, heli.y || landedY));
     }
 
     window.addEventListener('resize', resize);
     resize();
 
-    heli.x = padX + 160;
-    heli.y = Math.max(140, groundY - 260);
-
     // ------------------------------------------------------------
     // STATO GIOCO
     // ------------------------------------------------------------
     let state = 'ready'; // ready | play | end
-    let time = 120;
-    let fuel = 100;
-    let slots = 0;
-    let rescued = 0;
-    let lost = 0;
-    let roofPeople = TOTAL;
-    let panic = 0;
+    let time = 0;
+    let animTime = 0;
+    let pennedCount = 0;
 
-    let rotor = 0;
-    let fps = 0;
-    let fpsAcc = 0;
-    let fpsCount = 0;
-
-    let loadTimer = 0;
-    let unloadTimer = 0;
-    let loading = false;
-    let unloading = false;
-    let currentHold = false;
-    let lastAccel = 0;
-    let takeoffCooldown = 0;
-
-    let autoActive = false;
-    let autoX = heli.x;
-    let autoY = heli.y;
-
-    let messages = [];
-    let camX = 0;
+    let best = 0;
+    try {
+      best = Number(localStorage.getItem('bc_herding_best') || 0);
+    } catch (err) {
+      best = 0;
+    }
 
     const pointer = {
       down: false,
       id: null,
-      x: 0,
-      y: 0,
-      prevX: 0,
-      prevY: 0,
+      startX: 0,
+      startY: 0,
       lastX: 0,
       lastY: 0,
-      downX: 0,
-      downY: 0,
       downTime: 0,
-      moved: false,
-      stationary: 0,
-      targetX: heli.x,
-      targetY: heli.y
+      moved: false
     };
 
-    function clampX(x) {
-      return Math.max(30, Math.min(worldW - 30, x));
+    let drawing = false;
+
+    // ------------------------------------------------------------
+    // HELPERS
+    // ------------------------------------------------------------
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
     }
 
-    function clampY(y) {
-      return Math.max(64, Math.min(groundY - 18, y));
+    function dist(x1, y1, x2, y2) {
+      return Math.hypot(x2 - x1, y2 - y1);
     }
 
-    function clampTarget() {
-      pointer.targetX = clampX(pointer.targetX);
-      pointer.targetY = clampY(pointer.targetY);
+    function formatTime(t) {
+      return t.toFixed(1) + 's';
     }
 
-    function addMsg(text) {
-      messages.push({ text, ttl: 1.7 });
-      if (messages.length > 5) messages.shift();
+    function getPenSpot(index) {
+      const cols = Math.max(2, Math.floor(pen.w / 62));
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+
+      const spacingX = (pen.w - 56) / Math.max(1, cols - 1);
+
+      return {
+        x: pen.x + 28 + col * spacingX,
+        y: pen.y + 34 + row * 34
+      };
     }
 
-    function reset() {
+    function initField() {
+      time = 0;
+      pennedCount = 0;
+      path = [];
+
+      dog.x = viewW / 2;
+      dog.y = viewH - 120;
+      dog.vx = 0;
+      dog.vy = 0;
+      dog.angle = -Math.PI / 2;
+      dog.bark = 0;
+
+      sheep = [];
+
+      for (let i = 0; i < SHEEP_COUNT; i++) {
+        sheep.push({
+          x: viewW * (0.24 + Math.random() * 0.52),
+          y: viewH * (0.38 + Math.random() * 0.24),
+          vx: 0,
+          vy: 0,
+          angle: -Math.PI / 2,
+          penned: false,
+          penTimer: 0,
+          spotX: 0,
+          spotY: 0,
+          wobble: Math.random() * 100
+        });
+      }
+    }
+
+    function startGame() {
+      initField();
       state = 'play';
-      time = 120;
-      fuel = 100;
-      slots = 0;
-      rescued = 0;
-      lost = 0;
-      roofPeople = TOTAL;
-      panic = 0;
-
-      loadTimer = 0;
-      unloadTimer = 0;
-      loading = false;
-      unloading = false;
-      currentHold = false;
-      lastAccel = 0;
-      takeoffCooldown = 0;
-
-      autoActive = false;
-
-      messages = [];
-
-      heli.x = padX + 160;
-      heli.y = Math.max(140, groundY - 260);
-      heli.vx = 0;
-      heli.vy = 0;
-
-      landed = false;
-      camX = 0;
-
-      pointer.down = false;
-      pointer.stationary = 0;
-      pointer.targetX = heli.x;
-      pointer.targetY = heli.y;
-
-      addMsg('TRASCINA PER VOLARE');
       overlay.style.display = 'none';
     }
 
-    function end(reason) {
-      if (state !== 'play') return;
+    function endGame() {
       state = 'end';
 
-      ovTitle.textContent = reason;
+      if (best === 0 || time < best) {
+        best = time;
+        try {
+          localStorage.setItem('bc_herding_best', String(best));
+        } catch (err) {}
+      }
+
+      ovTitle.textContent = 'GREGGE RADUNATO!';
       ovBody.innerHTML = `
-        <b>${rescued}</b> salvati<br>
-        <b>${lost}</b> caduti<br>
-        <b>${roofPeople}</b> rimasti sul tetto<br><br>
-        Carico finale: ${slots}/${CAP}<br>
-        Autonomia residua: ${Math.round(fuel)}%<br><br>
-        <span class="small">Prototype: conta solo il feeling di volo, carico e atterraggio.</span>
+        Tutte le pecore sono nel recinto.<br><br>
+        Tempo: <b>${formatTime(time)}</b><br>
+        Migliore: <b>${formatTime(best)}</b><br><br>
+        <span class="small">Prossimo step: grafica Border Collie vera, versi, ostacoli e livelli.</span>
       `;
       ovBtn.textContent = 'RIPROVA ↻';
       overlay.style.display = 'flex';
     }
 
     ovBtn.addEventListener('click', () => {
-      reset();
+      startGame();
     });
 
     restartBtn.addEventListener('pointerdown', (e) => {
@@ -328,56 +336,67 @@
 
     restartBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      reset();
+      startGame();
     });
 
     // ------------------------------------------------------------
-    // INPUT UNIFICATO
+    // INPUT DRAW-TO-MOVE
     // ------------------------------------------------------------
+    function addPathPoint(x, y) {
+      if (path.length === 0) {
+        path.push({ x: dog.x, y: dog.y });
+      }
+
+      const last = path[path.length - 1];
+      const d = dist(x, y, last.x, last.y);
+
+      if (d < DRAW_MIN_POINT_DIST) return false;
+      if (path.length > 420) return false;
+
+      path.push({
+        x: clamp(x, 12, viewW - 12),
+        y: clamp(y, 12, viewH - 12)
+      });
+
+      return true;
+    }
+
     function pDown(x, y, id) {
       if (state !== 'play') return;
-      if (pointer.down) return;
-
-      autoActive = false;
 
       pointer.down = true;
       pointer.id = id;
-
-      pointer.x = x;
-      pointer.y = y;
-      pointer.prevX = x;
-      pointer.prevY = y;
+      pointer.startX = x;
+      pointer.startY = y;
       pointer.lastX = x;
       pointer.lastY = y;
-      pointer.downX = x;
-      pointer.downY = y;
       pointer.downTime = performance.now();
       pointer.moved = false;
-      pointer.stationary = 0;
-
-      // controllo relativo: il target parte dall'elicottero
-      pointer.targetX = heli.x;
-      pointer.targetY = heli.y;
+      drawing = false;
+      path = [];
     }
 
     function pMove(x, y) {
       if (!pointer.down) return;
 
-      const dx = x - pointer.lastX;
-      const dy = y - pointer.lastY;
+      const dStart = dist(x, y, pointer.startX, pointer.startY);
 
-      pointer.lastX = x;
-      pointer.lastY = y;
-      pointer.x = x;
-      pointer.y = y;
+      if (!drawing) {
+        if (dStart > 12) {
+          drawing = true;
+          pointer.moved = true;
+          path = [{ x: dog.x, y: dog.y }];
+          addPathPoint(x, y);
+          pointer.lastX = x;
+          pointer.lastY = y;
+        }
+        return;
+      }
 
-      pointer.targetX += dx;
-      pointer.targetY += dy;
-
-      clampTarget();
-
-      const dist = Math.hypot(x - pointer.downX, y - pointer.downY);
-      if (dist > 14) pointer.moved = true;
+      if (addPathPoint(x, y)) {
+        pointer.lastX = x;
+        pointer.lastY = y;
+      }
     }
 
     function pUp(x, y) {
@@ -385,37 +404,32 @@
 
       pointer.down = false;
 
-      const dur = performance.now() - pointer.downTime;
-      const dist = Math.hypot(x - pointer.downX, y - pointer.downY);
+      const duration = performance.now() - pointer.downTime;
 
-      if (!pointer.moved && dur < 240) {
-        if (landed) {
-          // Tap quando sei a terra = decollo facile
-          landed = false;
-          takeoffCooldown = 0.8;
-          autoActive = true;
-          autoX = clampX(heli.x);
-          autoY = clampY(landedY - 170);
-          addMsg('DECOLLO');
-        } else {
-          // Tap in volo = waypoint
-          autoActive = true;
-          autoX = clampX(x + camX);
-          autoY = clampY(y);
-        }
+      if (!drawing && duration < 250) {
+        bark();
+      }
+
+      drawing = false;
+    }
+
+    function bark() {
+      dog.bark = BARK_TIME;
+
+      if (navigator.vibrate) {
+        try {
+          navigator.vibrate(18);
+        } catch (err) {}
       }
     }
 
-    // Pointer Events
     canvas.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       pDown(e.clientX, e.clientY, e.pointerId);
 
       try {
         canvas.setPointerCapture(e.pointerId);
-      } catch (err) {
-        // alcuni browser possono non supportarla bene
-      }
+      } catch (err) {}
     });
 
     window.addEventListener('pointermove', (e) => {
@@ -436,10 +450,8 @@
       }
     });
 
-    // Fallback per browser molto vecchi senza Pointer Events
     if (!window.PointerEvent) {
       canvas.addEventListener('touchstart', (e) => {
-        if (state !== 'play') return;
         e.preventDefault();
         const t = e.changedTouches[0];
         pDown(t.clientX, t.clientY, 'touch');
@@ -465,7 +477,6 @@
       }, { passive: false });
     }
 
-    // Blocca scroll/zoom durante il gioco
     document.addEventListener('touchmove', (e) => {
       if (state === 'play') {
         e.preventDefault();
@@ -473,524 +484,492 @@
     }, { passive: false });
 
     // ------------------------------------------------------------
-    // UPDATE
+    // PATH FOLLOWING
     // ------------------------------------------------------------
-    function update(dt) {
-      rotor += dt * (landed ? 10 : 26);
+    function prunePath() {
+      while (
+        path.length > 1 &&
+        dist(path[0].x, path[0].y, dog.x, dog.y) < PATH_PRUNE_RADIUS
+      ) {
+        path.shift();
+      }
+    }
 
-      if (state !== 'play') return;
+    function getPathTarget() {
+      if (path.length === 0) return null;
+      if (path.length === 1) return path[0];
 
-      time -= dt;
-      if (time <= 0) {
-        time = 0;
-        end('TEMPO FINITO');
-        return;
+      let remaining = DOG_LOOKAHEAD;
+
+      for (let i = 0; i < path.length - 1; i++) {
+        const a = path[i];
+        const b = path[i + 1];
+        const d = dist(a.x, a.y, b.x, b.y);
+
+        if (d >= remaining) {
+          const t = remaining / d;
+          return {
+            x: a.x + (b.x - a.x) * t,
+            y: a.y + (b.y - a.y) * t
+          };
+        }
+
+        remaining -= d;
       }
 
-      if (takeoffCooldown > 0) {
-        takeoffCooldown -= dt;
-      }
+      return path[path.length - 1];
+    }
 
-      // HOLD / VERRICELLO
-      let holdActive = false;
+    function updateDog(dt) {
+      dog.bark = Math.max(0, dog.bark - dt);
 
-      if (pointer.down) {
-        const moveDist = Math.hypot(pointer.x - pointer.prevX, pointer.y - pointer.prevY);
+      prunePath();
 
-        if (moveDist < 2.8) {
-          pointer.stationary += dt;
-        } else {
-          pointer.stationary = 0;
-        }
+      const target = getPathTarget();
 
-        pointer.prevX = pointer.x;
-        pointer.prevY = pointer.y;
+      let desiredVx = 0;
+      let desiredVy = 0;
 
-        holdActive = pointer.stationary > 0.22;
-      } else {
-        pointer.stationary = 0;
-      }
+      if (target) {
+        const dx = target.x - dog.x;
+        const dy = target.y - dog.y;
+        const d = Math.hypot(dx, dy);
 
-      currentHold = holdActive;
-
-      // TARGET
-      let tx;
-      let ty;
-
-      if (pointer.down) {
-        tx = pointer.targetX;
-        ty = pointer.targetY;
-      } else if (autoActive) {
-        tx = autoX;
-        ty = autoY;
-
-        if (Math.hypot(tx - heli.x, ty - heli.y) < 14) {
-          autoActive = false;
-        }
-      } else {
-        tx = heli.x;
-        ty = heli.y;
-      }
-
-      const nearPad = Math.abs(heli.x - padX) < 90;
-      const wantsLow = ty > groundY - 125;
-
-      // ASSIST ATTERRAGGIO
-      // Solo se sei vicino alla base e stai chiedendo quota bassa.
-      if (!landed && nearPad && wantsLow && takeoffCooldown <= 0) {
-        ty = landedY;
-        tx = padX + (tx - padX) * 0.30;
-      }
-
-      let ax = 0;
-      let ay = 0;
-
-      if (landed) {
-        heli.vx = 0;
-        heli.vy = 0;
-        heli.y = landedY;
-
-        // Decollo con drag verso l'alto
-        if (pointer.down && ty < landedY - 24) {
-          landed = false;
-          takeoffCooldown = 0.7;
-          heli.vy = -90;
-          addMsg('DECOLLO');
-        }
-      } else {
-        const dx = tx - heli.x;
-        const dy = ty - heli.y;
-
-        ax = dx * K - heli.vx * DAMP;
-        ay = dy * K - heli.vy * DAMP;
-
-        const aMag = Math.hypot(ax, ay);
-        if (aMag > MAX_ACCEL) {
-          const s = MAX_ACCEL / aMag;
-          ax *= s;
-          ay *= s;
-        }
-
-        heli.vx += ax * dt;
-        heli.vy += ay * dt;
-
-        const vMag = Math.hypot(heli.vx, heli.vy);
-        if (vMag > MAX_SPEED) {
-          const s = MAX_SPEED / vMag;
-          heli.vx *= s;
-          heli.vy *= s;
-        }
-
-        heli.x += heli.vx * dt;
-        heli.y += heli.vy * dt;
-
-        // Bounds
-        if (heli.x < 30) {
-          heli.x = 30;
-          if (heli.vx < 0) heli.vx = 0;
-        }
-
-        if (heli.x > worldW - 30) {
-          heli.x = worldW - 30;
-          if (heli.vx > 0) heli.vx = 0;
-        }
-
-        if (heli.y < 64) {
-          heli.y = 64;
-          if (heli.vy < 0) heli.vy = 0;
-        }
-
-        if (heli.y > groundY - 18) {
-          heli.y = groundY - 18;
-          if (heli.vy > 0) heli.vy = 0;
-        }
-
-        const overPadNow = Math.abs(heli.x - padX) < 90;
-        const speedNow = Math.hypot(heli.vx, heli.vy);
-
-        const intentY = pointer.down
-          ? pointer.targetY
-          : (autoActive ? autoY : heli.y);
-
-        const wantsLanding = intentY > groundY - 125;
-
-        // ATTERRAGGIO
-        // Richiede cooldown finito, intenzione di stare basso,
-        // vicinanza al pad e velocità contenuta.
-        if (
-          overPadNow &&
-          takeoffCooldown <= 0 &&
-          wantsLanding &&
-          Math.abs(heli.y - landedY) < 18 &&
-          speedNow < 65 &&
-          heli.vy > -20
-        ) {
-          landed = true;
-          heli.y = landedY;
-          heli.vx = 0;
-          heli.vy = 0;
-          autoActive = false;
-          addMsg('ATTERRATO');
+        if (d > 1) {
+          const speed = Math.min(DOG_SPEED, d * 7);
+          desiredVx = (dx / d) * speed;
+          desiredVy = (dy / d) * speed;
         }
       }
 
-      lastAccel = Math.hypot(ax, ay);
-      const speed = Math.hypot(heli.vx, heli.vy);
+      const steer = Math.min(1, dt * DOG_STEER);
 
-      // AUTONOMIA
-      fuel -= (0.55 + speed / 2500) * dt;
-      if (fuel <= 0) {
-        fuel = 0;
-        end('AUTONOMIA ESAURITA');
-        return;
+      dog.vx += (desiredVx - dog.vx) * steer;
+      dog.vy += (desiredVy - dog.vy) * steer;
+
+      dog.x += dog.vx * dt;
+      dog.y += dog.vy * dt;
+
+      dog.x = clamp(dog.x, 16, viewW - 16);
+      dog.y = clamp(dog.y, 16, viewH - 16);
+
+      const speed = Math.hypot(dog.vx, dog.vy);
+      if (speed > 8) {
+        dog.angle = Math.atan2(dog.vy, dog.vx);
       }
+    }
 
-      // PANICO CARICO
-      if (slots > 0) {
-        let inc = 0;
+    // ------------------------------------------------------------
+    // SHEEP FLOCKING
+    // ------------------------------------------------------------
+    function updateSheep(dt) {
+      const penCx = pen.x + pen.w / 2;
+      const penCy = pen.y + pen.h / 2;
 
-        if (lastAccel > PANIC_ACCEL_THRESHOLD) {
-          inc += (lastAccel - PANIC_ACCEL_THRESHOLD) * 0.024;
+      for (let i = 0; i < sheep.length; i++) {
+        const s = sheep[i];
+
+        if (s.penned) {
+          const dx = s.spotX - s.x;
+          const dy = s.spotY - s.y;
+
+          s.x += dx * Math.min(1, dt * 5);
+          s.y += dy * Math.min(1, dt * 5);
+
+          s.vx = 0;
+          s.vy = 0;
+          continue;
         }
 
-        if (speed > PANIC_SPEED_THRESHOLD) {
-          inc += (speed - PANIC_SPEED_THRESHOLD) * 0.05;
-        }
+        let ax = 0;
+        let ay = 0;
 
-        if (inc === 0 && lastAccel < 360 && speed < 180) {
-          panic -= 16 * dt;
-        } else {
-          panic += inc * dt;
-          panic -= 3 * dt;
-        }
+        let count = 0;
+        let centerX = 0;
+        let centerY = 0;
+        let avgVx = 0;
+        let avgVy = 0;
+        let sepX = 0;
+        let sepY = 0;
 
-        panic = Math.max(0, Math.min(100, panic));
+        for (let j = 0; j < sheep.length; j++) {
+          if (i === j) continue;
 
-        if (panic >= 100) {
-          slots--;
-          lost++;
-          panic = 58;
-          addMsg('💀 UN PASSEGGERO È CADUTO');
-        }
-      } else {
-        panic = Math.max(0, panic - 35 * dt);
-      }
+          const o = sheep[j];
+          if (o.penned) continue;
 
-      // CAMERA
-      camX = Math.max(0, Math.min(worldW - viewW, heli.x - viewW * 0.45));
+          const d = dist(s.x, s.y, o.x, o.y);
 
-      // ------------------------------------------------------------
-      // INTERAZIONI
-      // ------------------------------------------------------------
-      loading = false;
-      unloading = false;
+          if (d < PERCEPTION) {
+            count++;
+            centerX += o.x;
+            centerY += o.y;
+            avgVx += o.vx;
+            avgVy += o.vy;
 
-      const overRoof = Math.abs(heli.x - roofX) < 95;
-      const hoverRoof = heli.y > roofY - 145 && heli.y < roofY - 8;
-      const lowSpeed = speed < 60;
-
-      // CARICO DAL TETTO
-      if (!landed && overRoof && hoverRoof && holdActive && lowSpeed && roofPeople > 0 && slots < CAP) {
-        loading = true;
-        loadTimer += dt;
-
-        if (loadTimer >= 0.68) {
-          loadTimer = 0;
-          roofPeople--;
-          slots++;
-          panic = Math.min(100, panic + 7);
-          addMsg('🧍 +1 A BORDO');
-        }
-      } else {
-        loadTimer = Math.max(0, loadTimer - dt * 2);
-      }
-
-      // SCARICO IN BASE
-      const overBase = Math.abs(heli.x - padX) < 95;
-      const hoverBase = heli.y > groundY - 125;
-
-      const canUnloadLanded = landed && overBase && slots > 0;
-      const canUnloadHover = !landed && overBase && hoverBase && holdActive && lowSpeed && slots > 0;
-
-      if (canUnloadLanded || canUnloadHover) {
-        unloading = true;
-        unloadTimer += dt;
-
-        const interval = landed ? 0.34 : 0.50;
-
-        if (unloadTimer >= interval) {
-          unloadTimer = 0;
-          slots--;
-          rescued++;
-          addMsg('🏠 SALVATO');
-
-          if (rescued >= TOTAL) {
-            end('TUTTI SALVATI');
-            return;
+            if (d < SEPARATION_DIST && d > 0.001) {
+              const push = 1 - d / SEPARATION_DIST;
+              sepX += ((s.x - o.x) / d) * push;
+              sepY += ((s.y - o.y) / d) * push;
+            }
           }
         }
-      } else {
-        unloadTimer = Math.max(0, unloadTimer - dt * 2);
+
+        if (count > 0) {
+          centerX /= count;
+          centerY /= count;
+          avgVx /= count;
+          avgVy /= count;
+
+          // Coesione
+          ax += (centerX - s.x) * COHESION;
+          ay += (centerY - s.y) * COHESION;
+
+          // Allineamento
+          ax += (avgVx - s.vx) * ALIGNMENT;
+          ay += (avgVy - s.vy) * ALIGNMENT;
+
+          // Separazione
+          ax += sepX * SEPARATION;
+          ay += sepY * SEPARATION;
+        }
+
+        // Fuga dal cane
+        const dxDog = s.x - dog.x;
+        const dyDog = s.y - dog.y;
+        const dDog = Math.hypot(dxDog, dyDog);
+
+        const radius = dog.bark > 0 ? BARK_RADIUS : DOG_RADIUS;
+        const force = dog.bark > 0 ? BARK_FORCE : FLEE_FORCE;
+
+        let fleeing = false;
+
+        if (dDog < radius && dDog > 0.001) {
+          const f = (1 - dDog / radius) * force;
+          ax += (dxDog / dDog) * f;
+          ay += (dyDog / dDog) * f;
+          fleeing = true;
+        }
+
+        // Attrazione verso il recinto
+        const toPenX = penCx - s.x;
+        const toPenY = penCy - s.y;
+        const penDist = Math.hypot(toPenX, toPenY);
+
+        if (penDist > 1) {
+          let pull = 0;
+
+          if (dog.y > s.y + 12) {
+            pull = fleeing ? PEN_PULL_ACTIVE : 12;
+          }
+
+          if (s.y < pen.y + pen.h + 90) {
+            pull = Math.max(pull, PEN_PULL_NEAR);
+          }
+
+          ax += (toPenX / penDist) * pull;
+          ay += (toPenY / penDist) * pull;
+        }
+
+        // Bordi campo
+        const margin = 42;
+
+        if (s.x < margin) {
+          ax += BOUNDARY_FORCE * (1 - s.x / margin);
+        }
+
+        if (s.x > viewW - margin) {
+          ax -= BOUNDARY_FORCE * (1 - (viewW - s.x) / margin);
+        }
+
+        if (s.y < margin) {
+          ay += BOUNDARY_FORCE * (1 - s.y / margin);
+        }
+
+        if (s.y > viewH - margin) {
+          ay -= BOUNDARY_FORCE * (1 - (viewH - s.y) / margin);
+        }
+
+        // Integrazione
+        s.vx += ax * dt;
+        s.vy += ay * dt;
+
+        const panic = dog.bark > 0 && dDog < radius;
+        const maxSpeed = panic ? SHEEP_MAX_SPEED_PANIC : SHEEP_MAX_SPEED;
+
+        const speed = Math.hypot(s.vx, s.vy);
+
+        if (speed > maxSpeed) {
+          s.vx *= maxSpeed / speed;
+          s.vy *= maxSpeed / speed;
+        }
+
+        s.vx *= Math.max(0, 1 - dt * FRICTION);
+        s.vy *= Math.max(0, 1 - dt * FRICTION);
+
+        s.x += s.vx * dt;
+        s.y += s.vy * dt;
+
+        s.x = clamp(s.x, 14, viewW - 14);
+        s.y = clamp(s.y, 14, viewH - 14);
+
+        if (Math.hypot(s.vx, s.vy) > 6) {
+          s.angle = Math.atan2(s.vy, s.vx);
+        }
+
+        // Recinto
+        const insidePen =
+          s.x > pen.x &&
+          s.x < pen.x + pen.w &&
+          s.y > pen.y &&
+          s.y < pen.y + pen.h;
+
+        if (insidePen) {
+          s.penTimer += dt;
+
+          if (s.penTimer > 0.35) {
+            s.penned = true;
+            const spot = getPenSpot(pennedCount);
+            s.spotX = spot.x;
+            s.spotY = spot.y;
+            pennedCount++;
+          }
+        } else {
+          s.penTimer = 0;
+        }
       }
 
-      // MESSAGES TTL
-      messages = messages.filter(m => {
-        m.ttl -= dt;
-        return m.ttl > 0;
-      });
+      if (pennedCount >= SHEEP_COUNT) {
+        endGame();
+      }
     }
 
     // ------------------------------------------------------------
     // DRAW
     // ------------------------------------------------------------
-    function draw() {
-      ctx.clearRect(0, 0, viewW, viewH);
-
-      // Sky
+    function drawField() {
       const g = ctx.createLinearGradient(0, 0, 0, viewH);
-      g.addColorStop(0, '#0b1020');
-      g.addColorStop(1, '#182238');
+      g.addColorStop(0, '#2f7a35');
+      g.addColorStop(1, '#1d5323');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, viewW, viewH);
 
-      // Ground
-      ctx.fillStyle = '#10151b';
-      ctx.fillRect(0, groundY, viewW, viewH - groundY);
+      // texture prato semplice
+      ctx.fillStyle = 'rgba(255,255,255,0.03)';
+      for (let i = 0; i < 24; i++) {
+        const x = (i * 173) % viewW;
+        const y = (i * 239) % viewH;
+        ctx.fillRect(x, y, 3, 3);
+      }
+    }
 
+    function drawPen() {
       ctx.save();
-      ctx.translate(-camX, 0);
 
-      // BASE
-      ctx.fillStyle = '#12351a';
-      ctx.fillRect(padX - 85, groundY - 10, 170, 12);
+      ctx.fillStyle = 'rgba(255,244,214,0.10)';
+      ctx.fillRect(pen.x, pen.y, pen.w, pen.h);
 
-      ctx.fillStyle = '#48d15c';
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(pen.x, pen.y, pen.w, pen.h);
+
+      // paletti
+      ctx.fillStyle = 'rgba(255,255,255,0.65)';
+      const posts = 6;
+      for (let i = 0; i <= posts; i++) {
+        const px = pen.x + (pen.w / posts) * i;
+        ctx.fillRect(px - 2, pen.y - 10, 4, 10);
+        ctx.fillRect(px - 2, pen.y + pen.h, 4, 10);
+      }
+
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
       ctx.font = 'bold 18px system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText('BASE', padX, groundY - 20);
-
-      if (Math.abs(heli.x - padX) < 95) {
-        ctx.strokeStyle = 'rgba(72,209,92,0.55)';
-        ctx.strokeRect(padX - 85, groundY - 100, 170, 90);
-      }
-
-      // ROOF / TETTO
-      ctx.fillStyle = '#332718';
-      ctx.fillRect(roofX - 95, roofY, 190, groundY - roofY);
-
-      ctx.fillStyle = '#5d452a';
-      ctx.fillRect(roofX - 105, roofY, 210, 16);
-
-      ctx.fillStyle = '#ffd28a';
-      ctx.font = 'bold 18px system-ui';
-      ctx.fillText('TETTO', roofX, roofY - 24);
-
-      // People on roof
-      for (let i = 0; i < roofPeople; i++) {
-        const px = roofX - 66 + (i % 6) * 24;
-        const py = roofY - 16 - Math.floor(i / 6) * 20;
-
-        ctx.fillStyle = '#ffe0b2';
-        ctx.beginPath();
-        ctx.arc(px, py, 6, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#4c3a24';
-        ctx.fillRect(px - 3, py + 6, 6, 10);
-      }
-
-      // Cable
-      if (loading) {
-        ctx.strokeStyle = 'rgba(140,220,255,0.9)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(heli.x, heli.y + 18);
-        ctx.lineTo(roofX, roofY - 6);
-        ctx.stroke();
-        ctx.lineWidth = 1;
-      }
-
-      if (unloading && !landed) {
-        ctx.strokeStyle = 'rgba(120,255,150,0.9)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(heli.x, heli.y + 18);
-        ctx.lineTo(padX, groundY - 8);
-        ctx.stroke();
-        ctx.lineWidth = 1;
-      }
-
-      // Auto target
-      if (autoActive) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-        ctx.beginPath();
-        ctx.arc(autoX, autoY, 12, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      // Drag target
-      if (pointer.down) {
-        ctx.strokeStyle = 'rgba(103,232,249,0.65)';
-        ctx.beginPath();
-        ctx.arc(pointer.targetX, pointer.targetY, 10, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(pointer.targetX - 16, pointer.targetY);
-        ctx.lineTo(pointer.targetX + 16, pointer.targetY);
-        ctx.moveTo(pointer.targetX, pointer.targetY - 16);
-        ctx.lineTo(pointer.targetX, pointer.targetY + 16);
-        ctx.stroke();
-      }
-
-      // Heli shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.28)';
-      ctx.beginPath();
-      ctx.ellipse(heli.x, groundY - 4, 32, 7, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Heli body
-      ctx.fillStyle = '#dfe7ee';
-      ctx.fillRect(heli.x - 30, heli.y - 12, 60, 26);
-
-      ctx.fillStyle = '#9fb2c1';
-      ctx.fillRect(heli.x - 54, heli.y - 6, 28, 10);
-
-      ctx.fillStyle = '#223041';
-      ctx.fillRect(heli.x + 14, heli.y - 8, 14, 12);
-
-      // Rotor
-      const r = Math.sin(rotor) * 42;
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(heli.x - r, heli.y - 22);
-      ctx.lineTo(heli.x + r, heli.y - 22);
-      ctx.stroke();
-      ctx.lineWidth = 1;
-
-      // Skids
-      ctx.strokeStyle = '#8fa0b0';
-      ctx.beginPath();
-      ctx.moveTo(heli.x - 28, heli.y + 20);
-      ctx.lineTo(heli.x + 28, heli.y + 20);
-
-      ctx.moveTo(heli.x - 18, heli.y + 14);
-      ctx.lineTo(heli.x - 18, heli.y + 20);
-
-      ctx.moveTo(heli.x + 18, heli.y + 14);
-      ctx.lineTo(heli.x + 18, heli.y + 20);
-      ctx.stroke();
-
-      // Seats / passengers
-      for (let i = 0; i < CAP; i++) {
-        const px = heli.x - 25 + i * 10;
-        const py = heli.y + 32;
-
-        ctx.fillStyle = i < slots ? '#7dff8a' : 'rgba(255,255,255,0.18)';
-        ctx.beginPath();
-        ctx.arc(px, py, 4, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Panic mini bar above heli
-      if (slots > 0) {
-        const w = 64;
-        const x = heli.x - w / 2;
-        const y = heli.y - 46;
-
-        ctx.fillStyle = 'rgba(0,0,0,0.45)';
-        ctx.fillRect(x, y, w, 7);
-
-        ctx.fillStyle = panic > 70 ? '#ff4d4d' : panic > 40 ? '#ffb020' : '#67e8f9';
-        ctx.fillRect(x, y, w * panic / 100, 7);
-      }
-
-      // Hold indicator
-      if (currentHold) {
-        ctx.fillStyle = 'rgba(103,232,249,0.95)';
-        ctx.font = 'bold 14px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText('VERRICELLO', heli.x, heli.y - 58);
-      }
-
-      // Landed hint
-      if (landed) {
-        ctx.fillStyle = 'rgba(255,255,255,0.92)';
-        ctx.font = 'bold 16px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText("TRASCINA VERSO L'ALTO OPPURE TOCCA", heli.x, heli.y - 84);
-      }
+      ctx.fillText('RECINTO', pen.x + pen.w / 2, pen.y - 18);
 
       ctx.restore();
+    }
 
-      // HUD
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
-      ctx.fillRect(0, 0, viewW, 64);
+    function drawPath() {
+      if (path.length < 2) return;
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.65)';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([7, 9]);
+      ctx.beginPath();
+      ctx.moveTo(path[0].x, path[0].y);
+
+      for (let i = 1; i < path.length; i++) {
+        ctx.lineTo(path[i].x, path[i].y);
+      }
+
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawSheep(s) {
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.rotate(s.angle);
+
+      const wiggle = s.penned ? 0 : Math.sin(animTime * 8 + s.wobble) * 1.2;
+
+      // corpo
+      ctx.fillStyle = s.penned ? 'rgba(255,255,255,0.82)' : '#fff';
+      ctx.beginPath();
+      ctx.ellipse(0, wiggle * 0.2, 13, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // lana
+      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // testa
+      ctx.fillStyle = '#1f2937';
+      ctx.beginPath();
+      ctx.ellipse(12, 0, 5.5, 4.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // orecchie
+      ctx.beginPath();
+      ctx.ellipse(10, -5, 3.5, 2, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.ellipse(10, 5, 3.5, 2, 0.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // coda
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(-13, 0, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawDog() {
+      ctx.save();
+      ctx.translate(dog.x, dog.y);
+
+      // raggio abbaio
+      if (dog.bark > 0) {
+        const alpha = dog.bark / BARK_TIME;
+        ctx.strokeStyle = `rgba(255,255,255,${0.55 * alpha})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, BARK_RADIUS * (1 - alpha * 0.25), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      ctx.rotate(dog.angle);
+
+      const tailWag = Math.sin(animTime * 18) * 6;
+
+      // coda
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-15, 0);
+      ctx.quadraticCurveTo(-25, tailWag, -30, tailWag * 0.4);
+      ctx.stroke();
+
+      // corpo
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 18, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // dorso nero
+      ctx.fillStyle = '#111827';
+      ctx.beginPath();
+      ctx.ellipse(-4, 0, 11, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // testa
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.arc(17, 0, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // muso
+      ctx.beginPath();
+      ctx.ellipse(22, 0, 4.5, 3.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // macchia testa
+      ctx.fillStyle = '#111827';
+      ctx.beginPath();
+      ctx.arc(15, -3, 5, Math.PI * 0.8, Math.PI * 2.05);
+      ctx.fill();
+
+      // orecchie
+      ctx.beginPath();
+      ctx.moveTo(12, -6);
+      ctx.lineTo(8, -13);
+      ctx.lineTo(16, -9);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(15, -7);
+      ctx.lineTo(18, -14);
+      ctx.lineTo(22, -6);
+      ctx.closePath();
+      ctx.fill();
+
+      // naso
+      ctx.fillStyle = '#0b1020';
+      ctx.beginPath();
+      ctx.arc(26, 0, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // occhio
+      ctx.beginPath();
+      ctx.arc(18, -2, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawHUD() {
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.fillRect(0, 0, viewW, 56);
 
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 18px system-ui';
       ctx.textAlign = 'left';
-      ctx.fillText(`⏱ ${Math.ceil(time)}s`, 14, 26);
+      ctx.fillText(`⏱ ${formatTime(time)}`, 14, 34);
 
-      ctx.font = '16px system-ui';
-      ctx.fillText(`🧍 ${slots}/${CAP} · 🏠 ${rescued} · 💀 ${lost}`, 14, 50);
+      ctx.textAlign = 'center';
+      ctx.fillText(`🐑 ${pennedCount}/${SHEEP_COUNT}`, viewW / 2, 34);
 
-      // Fuel
-      const fuelW = 130;
-      const fuelX = viewW - fuelW - 14;
-
-      ctx.fillStyle = 'rgba(255,255,255,0.16)';
-      ctx.fillRect(fuelX, 12, fuelW, 12);
-
-      ctx.fillStyle = fuel < 25 ? '#ff5d5d' : '#ffd54a';
-      ctx.fillRect(fuelX, 12, fuelW * fuel / 100, 12);
-
-      ctx.font = '12px system-ui';
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
       ctx.textAlign = 'right';
-      ctx.fillText('AUTONOMIA', viewW - 14, 40);
+      ctx.font = '15px system-ui';
+      ctx.fillText(`BEST ${best > 0 ? formatTime(best) : '-'}`, viewW - 14, 34);
 
-      // Panic HUD
-      if (slots > 0) {
-        const pw = 170;
-        const px = (viewW - pw) / 2;
+      ctx.textAlign = 'center';
+      ctx.font = '14px system-ui';
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.fillText('DISEGNA il percorso · TAP = abbaio', viewW / 2, viewH - 14);
+    }
 
-        ctx.fillStyle = 'rgba(255,255,255,0.16)';
-        ctx.fillRect(px, 12, pw, 12);
+    function draw() {
+      ctx.clearRect(0, 0, viewW, viewH);
 
-        ctx.fillStyle = panic > 70 ? '#ff4d4d' : panic > 40 ? '#ffb020' : '#67e8f9';
-        ctx.fillRect(px, 12, pw * panic / 100, 12);
+      drawField();
+      drawPen();
+      drawPath();
 
-        ctx.font = '12px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = 'rgba(255,255,255,0.8)';
-        ctx.fillText('PANICO CARICO', viewW / 2, 40);
+      for (const s of sheep) {
+        drawSheep(s);
       }
 
-      // Messages
-      ctx.textAlign = 'center';
-      ctx.font = 'bold 18px system-ui';
-      messages.forEach((m, i) => {
-        ctx.fillStyle = `rgba(255,255,255,${Math.min(1, m.ttl)})`;
-        ctx.fillText(m.text, viewW / 2, viewH - 130 - i * 26);
-      });
-
-      // Telemetry
-      ctx.font = '12px monospace';
-      ctx.textAlign = 'left';
-      ctx.fillStyle = 'rgba(255,255,255,0.68)';
-
-      const speed = Math.hypot(heli.vx, heli.vy).toFixed(0);
-      const accel = lastAccel.toFixed(0);
-
-      ctx.fillText(
-        `v:${speed}px/s a:${accel} panic:${panic.toFixed(0)}% fuel:${fuel.toFixed(0)}% ` +
-        `ptr:${pointer.down ? 'DOWN' : 'up'} auto:${autoActive ? 'ON' : 'off'} ` +
-        `landed:${landed ? 'YES' : 'no'} roof:${roofPeople} fps:${fps.toFixed(0)}`,
-        12,
-        viewH - 12
-      );
+      drawDog();
+      drawHUD();
     }
 
     // ------------------------------------------------------------
@@ -1002,20 +981,19 @@
       const dt = Math.min(0.033, (now - last) / 1000);
       last = now;
 
-      fpsAcc += dt;
-      fpsCount++;
+      animTime += dt;
 
-      if (fpsAcc >= 0.5) {
-        fps = fpsCount / fpsAcc;
-        fpsAcc = 0;
-        fpsCount = 0;
+      if (state === 'play') {
+        time += dt;
+        updateDog(dt);
+        updateSheep(dt);
       }
 
-      update(dt);
       draw();
       requestAnimationFrame(frame);
     }
 
+    initField();
     requestAnimationFrame(frame);
   </script>
 </body>
