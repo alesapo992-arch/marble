@@ -2,85 +2,88 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  />
   <title>Rory &amp; I 5 Cuccioli</title>
 
   <meta property="og:title" content="Rory & I 5 Cuccioli" />
-  <meta property="og:description" content="Guida l’elicottero di Rory e salva 5 cuccioli da aquile e lupi." />
+  <meta
+    property="og:description"
+    content="Guida l’elicottero di Rory e salva 5 cuccioli nella campagna."
+  />
   <meta name="twitter:card" content="summary_large_image" />
 
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
 
+    html,
     body {
       margin: 0;
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      background:
-        radial-gradient(circle at top, #2b4f72 0%, #101820 55%, #070b10 100%);
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #071018;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       color: #fff;
-      overflow: hidden;
-      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
       overscroll-behavior: none;
     }
 
-    #stage {
-      position: relative;
-      width: min(100vw, 960px);
-      aspect-ratio: 960 / 600;
-      touch-action: none;
-    }
-
-    canvas {
-      position: absolute;
+    #game {
+      position: fixed;
       inset: 0;
       width: 100%;
       height: 100%;
-      border-radius: 18px;
+      display: block;
+      touch-action: none;
       background: #87ceeb;
-      box-shadow: 0 18px 60px rgba(0,0,0,0.45);
     }
 
     .overlay {
-      position: absolute;
+      position: fixed;
       inset: 0;
-      z-index: 6;
+      z-index: 20;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 14px;
-      padding: 24px;
+      padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+        max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
       text-align: center;
-      background: rgba(8, 12, 20, 0.74);
-      backdrop-filter: blur(7px);
-      border-radius: 18px;
+      background: rgba(6, 12, 20, 0.76);
+      backdrop-filter: blur(8px);
     }
 
-    .hidden { display: none !important; }
+    .hidden {
+      display: none !important;
+    }
 
     h1 {
       margin: 0;
-      font-size: clamp(28px, 5vw, 54px);
+      font-size: clamp(30px, 8vw, 58px);
       line-height: 1;
-      letter-spacing: -0.02em;
-      text-shadow: 0 6px 20px rgba(0,0,0,0.35);
+      letter-spacing: -0.03em;
+      text-shadow: 0 8px 24px rgba(0, 0, 0, 0.38);
     }
 
     h2 {
       margin: 0;
-      font-size: clamp(24px, 4.4vw, 44px);
+      font-size: clamp(26px, 7vw, 48px);
       line-height: 1.05;
     }
 
     p {
       margin: 0;
-      max-width: 700px;
+      max-width: 620px;
       line-height: 1.35;
-      font-size: clamp(14px, 2.2vw, 18px);
-      color: rgba(255,255,255,0.92);
+      font-size: clamp(14px, 3.8vw, 18px);
+      color: rgba(255, 255, 255, 0.94);
     }
 
     ul {
@@ -88,23 +91,34 @@
       padding: 0;
       list-style: none;
       display: grid;
-      gap: 6px;
-      font-size: clamp(13px, 2vw, 16px);
-      color: rgba(255,255,255,0.88);
+      gap: 7px;
+      width: min(100%, 560px);
+      font-size: clamp(13px, 3.4vw, 16px);
+      color: rgba(255, 255, 255, 0.9);
+      text-align: left;
     }
 
-    li strong { color: #ffd166; }
+    li {
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    li strong {
+      color: #ffd166;
+    }
 
     .main-btn,
     .secondary-btn {
       border: 0;
       border-radius: 999px;
-      padding: 14px 24px;
+      padding: 15px 24px;
       font-weight: 900;
-      font-size: clamp(15px, 2.4vw, 20px);
+      font-size: clamp(15px, 4.2vw, 20px);
       cursor: pointer;
       color: #fff;
-      box-shadow: 0 10px 24px rgba(0,0,0,0.28);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
       transition: transform 0.12s ease, filter 0.12s ease;
       touch-action: manipulation;
     }
@@ -130,123 +144,75 @@
       justify-content: center;
     }
 
-    #controls {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 14px;
-      z-index: 5;
-      display: flex;
-      justify-content: space-between;
-      padding: 0 18px;
-      pointer-events: none;
-    }
-
-    .ctrl {
-      pointer-events: auto;
-      width: clamp(74px, 18vw, 106px);
-      height: clamp(74px, 18vw, 106px);
+    #fireBtn {
+      position: fixed;
+      right: max(18px, env(safe-area-inset-right));
+      bottom: max(26px, env(safe-area-inset-bottom));
+      z-index: 10;
+      width: clamp(82px, 24vw, 112px);
+      height: clamp(82px, 24vw, 112px);
       border-radius: 50%;
-      border: 3px solid rgba(255,255,255,0.72);
-      background: rgba(0,0,0,0.34);
+      border: 3px solid rgba(255, 255, 255, 0.76);
+      background: rgba(192, 57, 43, 0.72);
       color: #fff;
       font-weight: 900;
-      font-size: clamp(12px, 2.6vw, 16px);
+      font-size: clamp(12px, 3.2vw, 16px);
       line-height: 1.05;
       display: grid;
       place-items: center;
       text-align: center;
       touch-action: none;
       user-select: none;
-      box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
       transition: transform 0.1s ease, background 0.1s ease;
     }
 
-    .ctrl:active {
+    #fireBtn:active {
       transform: scale(0.94);
-      background: rgba(255,255,255,0.18);
+      background: rgba(255, 255, 255, 0.2);
     }
 
-    #fireBtn { background: rgba(192, 57, 43, 0.68); }
-    #slingBtn { background: rgba(41, 128, 185, 0.62); }
-
-    .small {
-      font-size: clamp(12px, 1.8vw, 14px);
-      color: rgba(255,255,255,0.72);
+    .tiny {
+      font-size: clamp(11px, 2.8vw, 13px);
+      color: rgba(255, 255, 255, 0.66);
     }
   </style>
 </head>
 <body>
-  <div id="stage">
-    <canvas id="game" width="960" height="600"></canvas>
+  <canvas id="game"></canvas>
 
-    <div id="startScreen" class="overlay">
-      <h1>🚁 RORY &amp; I 5 CUCCIOLI</h1>
-      <p>
-        Rory, border collie rossa e bianca, pilota l’elicottero di soccorso.
-        Recupera i <strong>5 cuccioli</strong> dispersi e riportali nella <strong>cuccia</strong>,
-        proteggendoli da <strong>aquile</strong> e <strong>lupi</strong>.
-      </p>
-      <ul>
-        <li><strong>TRASCINA</strong> = muovi l’elicottero</li>
-        <li><strong>RILASCIA</strong> = hover</li>
-        <li><strong>TAP</strong> = vai lì / decolla se sei a terra</li>
-        <li><strong>VERRICELLO</strong> o tasto <strong>S</strong> = aggancia cucciolo</li>
-        <li><strong>FUOCO</strong> o <strong>SPAZIO</strong> = spara palline</li>
-      </ul>
-      <button id="startBtn" class="main-btn">DECOLLA ▶</button>
-      <div class="small">Versione playtest · single-file</div>
-    </div>
+  <div id="startScreen" class="overlay">
+    <h1>🚁 RORY &amp; I 5 CUCCIOLI</h1>
+    <p>
+      Rory, border collie rossa e bianca, pilota l’elicottero di soccorso.
+      Sorvola la campagna, recupera i <strong>5 cuccioli</strong> e riportali nella
+      <strong>cuccia</strong>. Attento a <strong>aquile</strong> e <strong>lupi</strong>.
+    </p>
+    <ul>
+      <li><strong>TRASCINA</strong> o <strong>TAP</strong> = vola</li>
+      <li><strong>ATTERRA</strong> vicino a un cucciolo = sale da solo</li>
+      <li><strong>CUCCIA</strong> = consegna automatica</li>
+      <li><strong>FUOCO</strong> o <strong>SPAZIO</strong> = spara palline</li>
+    </ul>
+    <button id="startBtn" class="main-btn">DECOLLA ▶</button>
+    <div class="tiny">Playtest mobile · campagna 2D · camera dinamica</div>
+  </div>
 
-    <div id="winScreen" class="overlay hidden">
-      <h2 id="winTitle">RORY HA SALVATO TUTTI! 🎉</h2>
-      <p id="winStats"></p>
-      <div class="btn-row">
-        <button id="againBtn" class="main-btn">RIPROVA ↻</button>
-        <button id="shareBtn" class="secondary-btn">CONDIVIDI 📣</button>
-      </div>
-    </div>
-
-    <div id="controls">
-      <button id="slingBtn" class="ctrl">🪢<br>VERRICELLO</button>
-      <button id="fireBtn" class="ctrl">💥<br>FUOCO</button>
+  <div id="winScreen" class="overlay hidden">
+    <h2 id="winTitle">RORY HA SALVATO TUTTI! 🎉</h2>
+    <p id="winStats"></p>
+    <div class="btn-row">
+      <button id="againBtn" class="main-btn">RIPROVA ↻</button>
+      <button id="shareBtn" class="secondary-btn">CONDIVIDI 📣</button>
     </div>
   </div>
+
+  <button id="fireBtn">💥<br />FUOCO</button>
 
   <script>
     (() => {
       const canvas = document.getElementById("game");
       const ctx = canvas.getContext("2d");
-
-      const W = canvas.width;
-      const H = canvas.height;
-      const PI2 = Math.PI * 2;
-
-      const GROUND_Y = H - 70;
-      const HELI_GROUND_Y = GROUND_Y - 28;
-
-      const DOGHOUSE = {
-        x: 55,
-        y: GROUND_Y - 95,
-        w: 185,
-        h: 95
-      };
-
-      const BUILDINGS = [
-        { x: 205, y: 410, w: 95 },
-        { x: 385, y: 330, w: 95 },
-        { x: 565, y: 380, w: 95 },
-        { x: 735, y: 290, w: 95 },
-        { x: 470, y: 465, w: 90 }
-      ];
-
-      const PUPPY_DATA = [
-        { name: "Bibi", fur: "#fff7f0", patch: "#b5462d" },
-        { name: "Nina", fur: "#fff1e6", patch: "#8b3a24" },
-        { name: "Tom",  fur: "#f8f8f8", patch: "#c0563a" },
-        { name: "Luna", fur: "#fffaf5", patch: "#9e3e2a" },
-        { name: "Gio",  fur: "#fff3ea", patch: "#b5462d" }
-      ];
 
       const startScreen = document.getElementById("startScreen");
       const winScreen = document.getElementById("winScreen");
@@ -255,20 +221,25 @@
       const shareBtn = document.getElementById("shareBtn");
       const winTitle = document.getElementById("winTitle");
       const winStats = document.getElementById("winStats");
-      const slingBtn = document.getElementById("slingBtn");
       const fireBtn = document.getElementById("fireBtn");
+
+      const PI2 = Math.PI * 2;
+
+      let cssW = 0;
+      let cssH = 0;
+      let dpr = 1;
+      let zoom = 1;
 
       let running = false;
       let won = false;
       let time = 0;
+      let animTime = 0;
       let lastTimestamp = 0;
 
       let rescued = 0;
       let panic = 0;
-      let heat = 0;
-      let overheat = false;
-      let lastFire = -1;
-      let lastAttach = -1;
+      let boardTimer = 0;
+      let fireCooldown = 0;
 
       const stats = {
         maxPanic: 0,
@@ -277,61 +248,33 @@
         shots: 0
       };
 
-      const heli = {
-        x: 140,
-        y: HELI_GROUND_Y,
-        vx: 0,
-        vy: 0,
-        ax: 0,
-        ay: 0,
-        angle: 0,
-        aimAngle: 0,
-        rotor: 0,
-        jerk: 0,
-        onGround: true,
-        target: null,
-        carrying: [],
-        maxCarry: 5
-      };
+      const camera = { x: 300, y: 1400 };
 
       const input = {
-        pointerDown: false,
         pointerId: null,
-        pointerX: 0,
-        pointerY: 0,
-        startX: 0,
-        startY: 0,
-        startT: 0,
+        down: false,
+        startCX: 0,
+        startCY: 0,
         moved: false,
-        sling: false,
+        target: null,
         fire: false
       };
 
-      let puppies = [];
-      let eagles = [];
-      let wolves = [];
-      let bullets = [];
-      let particles = [];
+      const keys = {};
 
-      let audioCtx = null;
-
-      // ---------- utils ----------
+      // ----------------------
+      // Utils
+      // ----------------------
       function clamp(v, min, max) {
         return Math.max(min, Math.min(max, v));
-      }
-
-      function dist(x1, y1, x2, y2) {
-        return Math.hypot(x2 - x1, y2 - y1);
       }
 
       function lerp(a, b, t) {
         return a + (b - a) * t;
       }
 
-      function lerpAngle(a, b, t) {
-        let diff = ((b - a + Math.PI) % PI2) - Math.PI;
-        if (diff < -Math.PI) diff += PI2;
-        return a + diff * t;
+      function dist(x1, y1, x2, y2) {
+        return Math.hypot(x2 - x1, y2 - y1);
       }
 
       function rr(x, y, w, h, r) {
@@ -345,39 +288,293 @@
         ctx.closePath();
       }
 
+      function mulberry32(a) {
+        return function () {
+          let t = (a += 0x6d2b79f5);
+          t = Math.imul(t ^ (t >>> 15), t | 1);
+          t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      // ----------------------
+      // World
+      // ----------------------
+      const WORLD_W = 3600;
+      const WORLD_H = 2000;
+      const GROUND_BASE = 1650;
+
+      const RIVER = {
+        x1: 1700,
+        x2: 2200,
+        mid: 1950,
+        half: 250,
+        surface: 1685,
+        bed: 1748
+      };
+
+      function terrainY(x) {
+        let y =
+          GROUND_BASE +
+          Math.sin(x * 0.0011) * 62 +
+          Math.sin(x * 0.0027 + 1.7) * 30 +
+          Math.sin(x * 0.00065 + 4.1) * 46;
+
+        const t = clamp((x - RIVER.mid) / RIVER.half, -1, 1);
+        if (Math.abs(t) < 1) {
+          const dip = 1 - t * t;
+          y = lerp(y, RIVER.bed, dip * 0.82);
+        }
+
+        return y;
+      }
+
+      const platforms = [];
+
+      function addPlatform(x, y, w, h, type) {
+        platforms.push({ x, y, w, h, type });
+      }
+
+      const doghouse = {
+        x: 115,
+        w: 195,
+        h: 118
+      };
+      doghouse.cx = doghouse.x + doghouse.w / 2;
+      doghouse.cy = terrainY(doghouse.cx) - doghouse.h / 2;
+      doghouse.y = terrainY(doghouse.cx) - doghouse.h;
+      doghouse.groundY = terrainY(doghouse.cx);
+
+      const farmDefs = [
+        { x: 680, w: 275, h: 158, type: "barn" },
+        { x: 1320, w: 225, h: 132, type: "house" },
+        { x: 2425, w: 260, h: 150, type: "barn" },
+        { x: 3030, w: 215, h: 126, type: "house" }
+      ];
+
+      for (const f of farmDefs) {
+        f.y = terrainY(f.x + f.w / 2) - f.h;
+        addPlatform(f.x + 32, f.y, f.w - 64, 12, "roof");
+      }
+
+      addPlatform(RIVER.x1 + 25, RIVER.surface - 13, RIVER.x2 - RIVER.x1 - 50, 14, "bridge");
+
+      [500, 1555, 2765].forEach((x) => {
+        addPlatform(x - 40, terrainY(x) - 47, 80, 47, "hay");
+      });
+
+      addPlatform(1145, terrainY(1145 + 55) - 34, 110, 34, "log");
+      addPlatform(3110, terrainY(3110 + 48) - 58, 96, 58, "rock");
+
       function getSupportY(x) {
-        let y = GROUND_Y;
-        for (const b of BUILDINGS) {
-          if (x >= b.x - 8 && x <= b.x + b.w + 8) {
-            y = Math.min(y, b.y);
+        let y = terrainY(x);
+        for (const p of platforms) {
+          if (x >= p.x && x <= p.x + p.w) {
+            y = Math.min(y, p.y);
           }
         }
         return y;
       }
 
-      function isInDoghouseZone(obj) {
-        return (
-          obj.x > DOGHOUSE.x - 30 &&
-          obj.x < DOGHOUSE.x + DOGHOUSE.w + 30 &&
-          obj.y > DOGHOUSE.y + 10 &&
-          Math.abs(obj.vx) < 210 &&
-          Math.abs(obj.vy) < 210
-        );
+      const rand = mulberry32(42);
+      const trees = [];
+      const rocks = [];
+      const bushes = [];
+      const flowers = [];
+
+      for (let x = 45; x < WORLD_W - 45; x += 42 + rand() * 82) {
+        if (x > RIVER.x1 - 130 && x < RIVER.x2 + 130) continue;
+
+        let nearStructure = false;
+        for (const p of platforms) {
+          if (x > p.x - 55 && x < p.x + p.w + 55) nearStructure = true;
+        }
+        for (const f of farmDefs) {
+          if (x > f.x - 95 && x < f.x + f.w + 95) nearStructure = true;
+        }
+        if (nearStructure && rand() < 0.72) continue;
+
+        const y = terrainY(x);
+        const r = rand();
+
+        if (r < 0.43) {
+          trees.push({
+            x,
+            y,
+            type: rand() < 0.52 ? "pine" : "oak",
+            scale: 0.78 + rand() * 0.72,
+            seed: rand() * 10
+          });
+        } else if (r < 0.59) {
+          rocks.push({
+            x,
+            y: y - 7,
+            size: 12 + rand() * 22,
+            seed: rand() * 10
+          });
+        } else if (r < 0.84) {
+          bushes.push({
+            x,
+            y: y - 5,
+            size: 10 + rand() * 15,
+            seed: rand() * 10
+          });
+        } else {
+          flowers.push({
+            x,
+            y: y - 3,
+            hue: rand()
+          });
+        }
       }
 
-      function getPuppy(id) {
-        return puppies.find(p => p.id === id);
-      }
+      const clouds = [
+        { x: 120, y: 110, s: 1.0, p: 0.08, sp: 9 },
+        { x: 520, y: 180, s: 0.8, p: 0.12, sp: 13 },
+        { x: 900, y: 95, s: 1.15, p: 0.06, sp: 7 },
+        { x: 1400, y: 160, s: 0.9, p: 0.1, sp: 11 }
+      ];
 
-      function pointerToWorld(e) {
-        const rect = canvas.getBoundingClientRect();
+      const PUPPY_DATA = [
+        { name: "Bibi", fur: "#fff7f0", patch: "#b5462d" },
+        { name: "Nina", fur: "#fff1e6", patch: "#8b3a24" },
+        { name: "Tom", fur: "#f8f8f8", patch: "#c0563a" },
+        { name: "Luna", fur: "#fffaf5", patch: "#9e3e2a" },
+        { name: "Gio", fur: "#fff3ea", patch: "#b5462d" }
+      ];
+
+      const puppySpawns = [{ x: 430 }, { x: 820 }, { x: 1555 }, { x: 2310 }, { x: 3110 }];
+
+      // ----------------------
+      // Entities
+      // ----------------------
+      const heli = {
+        x: 245,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        ax: 0,
+        ay: 0,
+        angle: 0,
+        aimAngle: 0,
+        rotor: 0,
+        jerk: 0,
+        onGround: true,
+        carrying: [],
+        maxCarry: 5
+      };
+
+      let puppies = [];
+      let eagles = [];
+      let wolves = [];
+      let bullets = [];
+      let particles = [];
+      let audioCtx = null;
+
+      function makeEagle(x) {
+        x = clamp(x ?? 900 + Math.random() * 1800, 90, WORLD_W - 90);
         return {
-          x: (e.clientX - rect.left) * (W / rect.width),
-          y: (e.clientY - rect.top) * (H / rect.height)
+          type: "eagle",
+          x,
+          y: clamp(terrainY(x) - 480, 120, 900),
+          vx: 0,
+          vy: 0,
+          state: "patrol",
+          timer: 1 + Math.random() * 1.6,
+          targetId: null,
+          stun: 0,
+          seed: Math.random() * 100,
+          flap: Math.random() * 10
         };
       }
 
-      // ---------- audio ----------
+      function makeWolf(x) {
+        x = clamp(x ?? 900 + Math.random() * 1800, 90, WORLD_W - 90);
+        return {
+          type: "wolf",
+          x,
+          y: terrainY(x) - 28,
+          vx: 0,
+          dir: Math.random() < 0.5 ? -1 : 1,
+          speed: 78,
+          state: "patrol",
+          timer: 1 + Math.random(),
+          targetId: null,
+          scare: 0
+        };
+      }
+
+      function spawnPuppies() {
+        puppies = puppySpawns.map((s, i) => {
+          const d = PUPPY_DATA[i];
+          return {
+            id: i + 1,
+            name: d.name,
+            fur: d.fur,
+            patch: d.patch,
+            x: s.x,
+            y: getSupportY(s.x) - 18,
+            vx: 0,
+            vy: 0,
+            state: "lost",
+            carrier: null,
+            bob: Math.random() * 10
+          };
+        });
+      }
+
+      function resetGame() {
+        running = false;
+        won = false;
+        time = 0;
+        rescued = 0;
+        panic = 0;
+        boardTimer = 0;
+        fireCooldown = 0;
+
+        stats.maxPanic = 0;
+        stats.drops = 0;
+        stats.enemiesStunned = 0;
+        stats.shots = 0;
+
+        Object.assign(heli, {
+          x: 245,
+          y: doghouse.groundY - 26,
+          vx: 0,
+          vy: 0,
+          ax: 0,
+          ay: 0,
+          angle: 0,
+          aimAngle: 0,
+          rotor: 0,
+          jerk: 0,
+          onGround: true,
+          carrying: []
+        });
+
+        Object.assign(input, {
+          pointerId: null,
+          down: false,
+          startCX: 0,
+          startCY: 0,
+          moved: false,
+          target: null,
+          fire: false
+        });
+
+        camera.x = heli.x;
+        camera.y = heli.y;
+
+        spawnPuppies();
+        eagles = [makeEagle(1600 + Math.random() * 900)];
+        wolves = [makeWolf(1000 + Math.random() * 1400)];
+        bullets = [];
+        particles = [];
+      }
+
+      // ----------------------
+      // Audio
+      // ----------------------
       function initAudio() {
         try {
           if (!audioCtx) {
@@ -387,7 +584,7 @@
         } catch (err) {}
       }
 
-      function tone(freq, dur, type = "sine", vol = 0.06, slide = 0) {
+      function tone(freq, dur, type = "sine", vol = 0.05, slide = 0) {
         if (!audioCtx) return;
         try {
           const o = audioCtx.createOscillator();
@@ -409,22 +606,35 @@
         } catch (err) {}
       }
 
-      function playShoot() { tone(760, 0.07, "square", 0.035, -360); }
-      function playHit() { tone(280, 0.11, "triangle", 0.06, -130); }
-      function playAttach() { tone(540, 0.08, "sine", 0.05, 90); }
-      function playDrop() { tone(190, 0.16, "sawtooth", 0.045, -80); }
+      function playShoot() {
+        tone(720, 0.06, "square", 0.03, -320);
+      }
+
+      function playHit() {
+        tone(280, 0.1, "triangle", 0.055, -120);
+      }
+
+      function playBoard() {
+        tone(560, 0.08, "sine", 0.045, 90);
+      }
+
+      function playDrop() {
+        tone(190, 0.14, "sawtooth", 0.04, -70);
+      }
 
       function playRescue() {
-        tone(660, 0.09, "sine", 0.055);
-        setTimeout(() => tone(880, 0.12, "sine", 0.055), 90);
+        tone(660, 0.08, "sine", 0.05);
+        setTimeout(() => tone(880, 0.11, "sine", 0.05), 85);
       }
 
       function playWin() {
         const notes = [523, 659, 784, 1046];
-        notes.forEach((n, i) => setTimeout(() => tone(n, 0.16, "sine", 0.06), i * 110));
+        notes.forEach((n, i) => setTimeout(() => tone(n, 0.15, "sine", 0.055), i * 105));
       }
 
-      // ---------- particles ----------
+      // ----------------------
+      // Particles
+      // ----------------------
       function addParticle(opt) {
         particles.push({
           x: 0,
@@ -439,6 +649,7 @@
           gravity: 0,
           ...opt
         });
+        particles[particles.length - 1].maxLife = particles[particles.length - 1].life;
       }
 
       function updateParticles(dt) {
@@ -452,111 +663,15 @@
         }
       }
 
-      // ---------- entities ----------
-      function makeEagle(x = 620 + Math.random() * 280, y = 65 + Math.random() * 45) {
-        return {
-          type: "eagle",
-          x,
-          y,
-          vx: 0,
-          vy: 0,
-          state: "patrol",
-          timer: 1.2 + Math.random() * 1.5,
-          targetId: null,
-          stun: 0,
-          seed: Math.random() * 100,
-          flap: Math.random() * 10
-        };
-      }
-
-      function makeWolf(x = 480 + Math.random() * 360) {
-        return {
-          type: "wolf",
-          x,
-          y: GROUND_Y - 28,
-          vx: 0,
-          dir: Math.random() < 0.5 ? -1 : 1,
-          speed: 76,
-          state: "patrol",
-          timer: 1 + Math.random(),
-          targetId: null,
-          scare: 0
-        };
-      }
-
-      function spawnPuppies() {
-        puppies = PUPPY_DATA.map((d, i) => {
-          const b = BUILDINGS[i];
-          return {
-            id: i + 1,
-            name: d.name,
-            fur: d.fur,
-            patch: d.patch,
-            x: b.x + b.w / 2,
-            y: b.y - 20,
-            vx: 0,
-            vy: 0,
-            state: "lost",
-            carrier: null,
-            bob: Math.random() * 10
-          };
-        });
-      }
-
-      function resetGame() {
-        running = false;
-        won = false;
-        time = 0;
-        rescued = 0;
-        panic = 0;
-        heat = 0;
-        overheat = false;
-        lastFire = -1;
-        lastAttach = -1;
-
-        stats.maxPanic = 0;
-        stats.drops = 0;
-        stats.enemiesStunned = 0;
-        stats.shots = 0;
-
-        Object.assign(heli, {
-          x: 140,
-          y: HELI_GROUND_Y,
-          vx: 0,
-          vy: 0,
-          ax: 0,
-          ay: 0,
-          angle: 0,
-          aimAngle: 0,
-          rotor: 0,
-          jerk: 0,
-          onGround: true,
-          target: null,
-          carrying: []
-        });
-
-        Object.assign(input, {
-          pointerDown: false,
-          pointerId: null,
-          pointerX: 0,
-          pointerY: 0,
-          startX: 0,
-          startY: 0,
-          startT: 0,
-          moved: false,
-          sling: false,
-          fire: false
-        });
-
-        spawnPuppies();
-        eagles = [makeEagle()];
-        wolves = [makeWolf()];
-        bullets = [];
-        particles = [];
+      // ----------------------
+      // Helpers gameplay
+      // ----------------------
+      function getPuppy(id) {
+        return puppies.find((p) => p.id === id);
       }
 
       function removeFromHeli(p) {
-        heli.carrying = heli.carrying.filter(id => id !== p.id);
+        heli.carrying = heli.carrying.filter((id) => id !== p.id);
         p.carrier = null;
       }
 
@@ -566,14 +681,14 @@
         heli.carrying.push(p.id);
         addParticle({
           x: p.x,
-          y: p.y - 18,
+          y: p.y - 20,
           vy: -45,
           life: 0.65,
           color: "#7CFC00",
           size: 18,
           text: "♥"
         });
-        playAttach();
+        playBoard();
       }
 
       function rescuePuppy(p) {
@@ -594,7 +709,7 @@
         playRescue();
       }
 
-      function dropPuppyToGround(p, reason = "panic") {
+      function dropPuppyToGround(p) {
         if (!p || p.state !== "attached") return;
         removeFromHeli(p);
         p.state = "falling";
@@ -620,200 +735,20 @@
         p.vy = 70;
         p.vx = (Math.random() - 0.5) * 90;
         e.targetId = null;
-        addParticle({
-          x: p.x,
-          y: p.y - 18,
-          vy: -45,
-          life: 0.65,
-          color: "#ffd166",
-          size: 18,
-          text: "?"
-        });
       }
 
-      function winGame() {
-        won = true;
-        running = false;
-        playWin();
-
-        winTitle.textContent = "RORY HA SALVATO TUTTI I CUCCIOLI! 🎉";
-        winStats.innerHTML =
-          `Tempo: <strong>${Math.round(time)}s</strong><br>` +
-          `Panico massimo: <strong>${Math.round(stats.maxPanic)}%</strong><br>` +
-          `Cuccioli caduti: <strong>${stats.drops}</strong><br>` +
-          `Predatori storditi: <strong>${stats.enemiesStunned}</strong>`;
-
-        winScreen.classList.remove("hidden");
-      }
-
-      // ---------- update ----------
-      function updateHeli(dt) {
-        heli.rotor += dt * (24 + Math.abs(heli.vx) * 0.035);
-
-        let target = null;
-        if (input.pointerDown) {
-          target = { x: input.pointerX, y: input.pointerY };
-        } else if (heli.target) {
-          target = heli.target;
-        }
-
-        let ax = 0;
-        let ay = 0;
-
-        if (target) {
-          const dx = target.x - heli.x;
-          const dy = target.y - heli.y;
-          const desiredVx = clamp(dx * 3.1, -360, 360);
-          const desiredVy = clamp(dy * 3.1, -360, 360);
-          ax = (desiredVx - heli.vx) * 5.4;
-          ay = (desiredVy - heli.vy) * 5.4;
-        } else {
-          ax = -heli.vx * 3.6;
-          ay = -heli.vy * 3.6;
-        }
-
-        heli.ax = ax;
-        heli.ay = ay;
-        heli.jerk = Math.hypot(ax, ay);
-
-        heli.vx += ax * dt;
-        heli.vy += ay * dt;
-
-        heli.vx = clamp(heli.vx, -390, 390);
-        heli.vy = clamp(heli.vy, -390, 390);
-
-        heli.x += heli.vx * dt;
-        heli.y += heli.vy * dt;
-
-        if (heli.x < 35) { heli.x = 35; heli.vx = 0; }
-        if (heli.x > W - 35) { heli.x = W - 35; heli.vx = 0; }
-
-        if (heli.y < 45) {
-          heli.y = 45;
-          heli.vy = Math.max(0, heli.vy);
-        }
-
-        if (heli.y > HELI_GROUND_Y) {
-          heli.y = HELI_GROUND_Y;
-          heli.vy = 0;
-          heli.onGround = true;
-        } else {
-          heli.onGround = false;
-        }
-
-        heli.angle = clamp(heli.vx * 0.0018, -0.32, 0.32);
-
-        // turret auto-aim verso predatore più vicino, altrimenti guarda avanti
-        const aimTarget = nearestEnemy();
-        const desiredAim = aimTarget
-          ? Math.atan2(aimTarget.y - heli.y, aimTarget.x - heli.x)
-          : heli.angle;
-        heli.aimAngle = lerpAngle(heli.aimAngle, desiredAim, Math.min(1, dt * 8));
-
-        // consegna automatica alla cuccia
-        if (isInDoghouseZone(heli) && heli.carrying.length > 0) {
-          const ids = heli.carrying.slice();
-          for (const id of ids) {
-            const p = getPuppy(id);
-            if (p && p.state === "attached") rescuePuppy(p);
-          }
-          heli.carrying = [];
-        }
-      }
-
-      function updateSling(dt) {
-        if (!input.sling) return;
-        if (time - lastAttach < 0.18) return;
-        lastAttach = time;
-
-        if (heli.carrying.length >= heli.maxCarry) return;
-
-        const hx = heli.x;
-        const hy = heli.y + 34;
-        let best = null;
-        let bestD = 112;
-
-        for (const p of puppies) {
-          if (p.state !== "lost") continue;
-          const d = dist(hx, hy, p.x, p.y);
-          if (d < bestD) {
-            bestD = d;
-            best = p;
-          }
-        }
-
-        if (best) attachPuppy(best);
-      }
-
-      function updatePuppies(dt) {
-        for (const p of puppies) {
-          if (p.state === "attached") {
-            const idx = heli.carrying.indexOf(p.id);
-            if (idx < 0) {
-              p.state = "falling";
-              continue;
-            }
-
-            const count = heli.carrying.length;
-            const spread = (idx - (count - 1) / 2) * 16;
-            const rope = 46 + idx * 14;
-            const tx = heli.x + spread + Math.sin(time * 2 + idx) * 2;
-            const ty = heli.y + rope;
-
-            p.vx += (tx - p.x) * 9.5 * dt;
-            p.vy += (ty - p.y) * 9.5 * dt;
-            p.vx *= 0.90;
-            p.vy *= 0.90;
-            p.x += p.vx * dt;
-            p.y += p.vy * dt;
-
-            p.y = Math.min(p.y, GROUND_Y - 4);
-
-            const strain = dist(p.x, p.y, tx, ty);
-            if (strain > 70) {
-              panic += (strain - 70) * 0.025 * dt;
-            }
-          } else if (p.state === "falling") {
-            p.vy += 780 * dt;
-            p.x += p.vx * dt;
-            p.y += p.vy * dt;
-
-            p.x = clamp(p.x, 25, W - 25);
-
-            const support = getSupportY(p.x) - 18;
-            if (p.y >= support) {
-              p.y = support;
-              p.vy = 0;
-              p.vx = 0;
-              p.state = "lost";
-              addParticle({
-                x: p.x,
-                y: p.y + 8,
-                vy: -20,
-                life: 0.35,
-                color: "rgba(255,255,255,0.8)",
-                size: 14,
-                text: "·"
-              });
-            }
-          } else if (p.state === "danger") {
-            if (p.carrier && p.carrier.type === "eagle") {
-              p.x = p.carrier.x;
-              p.y = p.carrier.y + 30;
-            } else {
-              p.state = "falling";
-              p.carrier = null;
-            }
-          } else if (p.state === "lost") {
-            p.bob += dt * 3;
-            p.y = getSupportY(p.x) - 18;
-          }
-        }
+      function isInBaseZone(obj) {
+        return (
+          obj.x > doghouse.x - 85 &&
+          obj.x < doghouse.x + doghouse.w + 85 &&
+          obj.y > doghouse.y - 90 &&
+          obj.y < doghouse.groundY + 70
+        );
       }
 
       function nearestEnemy() {
         let best = null;
-        let bestD = 560;
+        let bestD = 700;
 
         for (const e of eagles) {
           if (e.stun > 0) continue;
@@ -848,8 +783,8 @@
           if (p.state !== "lost" && p.state !== "attached") continue;
           const d = dist(e.x, e.y, p.x, p.y);
           let score = d;
-          if (p.state === "attached") score -= 140;
-          if (d < 430 && score < bestScore) {
+          if (p.state === "attached") score -= 160;
+          if (d < 520 && score < bestScore) {
             bestScore = score;
             best = p;
           }
@@ -865,7 +800,7 @@
         t.carrier = e;
         e.targetId = t.id;
         e.state = "carry";
-        e.timer = 3.2;
+        e.timer = 3.0;
         panic += 26;
         addParticle({
           x: t.x,
@@ -879,123 +814,25 @@
       }
 
       function respawnEagle(e) {
-        e.x = 80 + Math.random() * (W - 160);
-        e.y = -50;
+        e.x = clamp(heli.x + (Math.random() - 0.5) * 1600, 90, WORLD_W - 90);
+        e.y = clamp(terrainY(e.x) - 560, 80, 760);
         e.vx = 0;
         e.vy = 0;
         e.state = "patrol";
-        e.timer = 1.2 + Math.random() * 1.8;
+        e.timer = 1 + Math.random() * 1.8;
         e.targetId = null;
         e.stun = 0;
       }
 
-      function updateEagle(e, dt) {
-        e.flap += dt * (e.state === "dive" ? 18 : 9);
-
-        if (e.stun > 0) {
-          e.stun -= dt;
-          e.x += e.vx * dt;
-          e.y += e.vy * dt;
-          e.vx *= 0.96;
-          e.vy *= 0.96;
-          if (e.stun <= 0) {
-            e.state = "retreat";
-            e.targetId = null;
-          }
-          return;
-        }
-
-        if (e.state === "patrol") {
-          e.timer -= dt;
-          e.x += Math.cos(time * 0.6 + e.seed) * 50 * dt;
-          e.y = 75 + Math.sin(time * 0.8 + e.seed) * 25;
-          e.x = clamp(e.x, 40, W - 40);
-
-          if (e.timer <= 0) {
-            const t = findEagleTarget(e);
-            if (t) {
-              e.targetId = t.id;
-              e.state = "aim";
-              e.timer = 0.8;
-            } else {
-              e.timer = 1;
-            }
-          }
-        } else if (e.state === "aim") {
-          const t = getPuppy(e.targetId);
-          if (!eagleTargetValid(t)) {
-            e.state = "patrol";
-            e.timer = 1;
-            e.targetId = null;
-            return;
-          }
-
-          e.timer -= dt;
-          const tx = t.x;
-          const ty = t.y - 100;
-          e.x = lerp(e.x, tx, Math.min(1, dt * 2.0));
-          e.y = lerp(e.y, ty, Math.min(1, dt * 2.0));
-
-          if (e.timer <= 0) e.state = "dive";
-        } else if (e.state === "dive") {
-          const t = getPuppy(e.targetId);
-          if (!eagleTargetValid(t)) {
-            e.state = "patrol";
-            e.timer = 1;
-            e.targetId = null;
-            return;
-          }
-
-          const dx = t.x - e.x;
-          const dy = t.y - e.y;
-          const d = Math.hypot(dx, dy) || 1;
-          const speed = 250;
-
-          e.x += (dx / d) * speed * dt;
-          e.y += (dy / d) * speed * dt;
-
-          if (d < 34) {
-            grabByEagle(e, t);
-          }
-
-          if (e.y > H + 50 || d > 450) {
-            e.state = "retreat";
-            e.targetId = null;
-          }
-        } else if (e.state === "carry") {
-          const t = getPuppy(e.targetId);
-          if (!t || t.state !== "danger" || t.carrier !== e) {
-            e.state = "retreat";
-            e.targetId = null;
-            return;
-          }
-
-          e.timer -= dt;
-          t.x = e.x;
-          t.y = e.y + 30;
-
-          e.y -= 65 * dt;
-          e.x += Math.sin(time * 3 + e.seed) * 35 * dt;
-
-          if (e.y < 25 || e.timer <= 0) {
-            dropEaglePuppy(t, e);
-            e.state = "retreat";
-          }
-        } else if (e.state === "retreat") {
-          e.y -= 150 * dt;
-          e.x += Math.sin(time * 2 + e.seed) * 50 * dt;
-          if (e.y < -90) respawnEagle(e);
-        }
-      }
-
       function findWolfTarget(w) {
         let best = null;
-        let bestD = 340;
+        let bestD = 390;
 
         for (const p of puppies) {
           if (p.state !== "lost") continue;
-          if (p.y < GROUND_Y - 110) continue; // troppo in alto per un lupo
-          const d = Math.abs(p.x - w.x) + Math.abs(p.y - w.y) * 0.45;
+          const support = getSupportY(p.x) - 18;
+          if (Math.abs(p.y - support) > 35) continue;
+          const d = Math.abs(p.x - w.x) + Math.abs(p.y - w.y) * 0.35;
           if (d < bestD) {
             bestD = d;
             best = p;
@@ -1007,12 +844,19 @@
 
       function wolfScarePuppy(t, w) {
         const away = t.x < w.x ? -1 : 1;
-        t.x = clamp(t.x + away * 130, 40, W - 40);
+        let nx = clamp(t.x + away * (120 + Math.random() * 90), 55, WORLD_W - 55);
+
+        if (nx > RIVER.x1 + 15 && nx < RIVER.x2 - 15) {
+          nx = nx < RIVER.mid ? RIVER.x1 - 45 : RIVER.x2 + 45;
+        }
+
+        t.x = nx;
         t.y = getSupportY(t.x) - 18;
         t.vx = 0;
         t.vy = 0;
         t.state = "lost";
-        panic += 16;
+        panic += 18;
+
         addParticle({
           x: t.x,
           y: t.y - 22,
@@ -1022,85 +866,15 @@
           size: 20,
           text: "!"
         });
+
         playDrop();
-      }
-
-      function updateWolf(w, dt) {
-        w.y = GROUND_Y - 28;
-
-        if (w.scare > 0) {
-          w.scare -= dt;
-          w.x += w.vx * dt;
-          w.vx *= 0.95;
-          if (w.x < 35) { w.x = 35; w.vx = Math.abs(w.vx); }
-          if (w.x > W - 35) { w.x = W - 35; w.vx = -Math.abs(w.vx); }
-          if (w.scare <= 0) {
-            w.state = "patrol";
-            w.timer = 1;
-          }
-          return;
-        }
-
-        if (w.state === "patrol") {
-          w.timer -= dt;
-          w.x += w.dir * w.speed * dt;
-
-          if (w.x < 50) { w.x = 50; w.dir = 1; }
-          if (w.x > W - 50) { w.x = W - 50; w.dir = -1; }
-
-          if (w.timer <= 0) {
-            const t = findWolfTarget(w);
-            if (t) {
-              w.targetId = t.id;
-              w.state = "chase";
-              w.timer = 0;
-            } else {
-              w.timer = 1;
-            }
-          }
-        } else if (w.state === "chase") {
-          const t = getPuppy(w.targetId);
-          if (!t || t.state !== "lost" || t.y < GROUND_Y - 110) {
-            w.state = "patrol";
-            w.timer = 1;
-            w.targetId = null;
-            return;
-          }
-
-          const dir = Math.sign(t.x - w.x) || 1;
-          w.dir = dir;
-          w.x += dir * w.speed * 1.35 * dt;
-          w.x = clamp(w.x, 35, W - 35);
-
-          if (Math.abs(t.x - w.x) < 45 && Math.abs(t.y - w.y) < 85) {
-            w.timer += dt;
-            if (w.timer > 1.8) {
-              wolfScarePuppy(t, w);
-              w.timer = 0;
-              w.scare = 0.7;
-              w.state = "patrol";
-              w.targetId = null;
-            }
-          } else {
-            w.timer = 0;
-          }
-        }
-      }
-
-      function updateEnemies(dt) {
-        for (const e of eagles) updateEagle(e, dt);
-        for (const w of wolves) updateWolf(w, dt);
-
-        // rinforzi progressivi per creare arco di tensione
-        if (rescued >= 2 && eagles.length < 2) eagles.push(makeEagle());
-        if (rescued >= 3 && wolves.length < 2) wolves.push(makeWolf());
       }
 
       function hitEagle(e, b) {
         e.stun = 2.2;
         e.state = "stunned";
-        e.vx = b.vx * 0.06;
-        e.vy = -70;
+        e.vx = b.vx * 0.05;
+        e.vy = -80;
         stats.enemiesStunned++;
 
         const t = getPuppy(e.targetId);
@@ -1117,13 +891,14 @@
           size: 20,
           text: "💥"
         });
+
         playHit();
       }
 
       function hitWolf(w, b) {
         w.scare = 1.8;
         w.state = "scared";
-        w.vx = Math.sign(w.x - b.x) * 170;
+        w.vx = Math.sign(w.x - b.x) * 180;
         stats.enemiesStunned++;
 
         addParticle({
@@ -1135,21 +910,463 @@
           size: 18,
           text: "💢"
         });
+
         playHit();
+      }
+
+      function fireCannon() {
+        if (fireCooldown > 0) return;
+        fireCooldown = 0.17;
+        stats.shots++;
+
+        const angle = heli.aimAngle;
+        const mx = heli.x + Math.cos(angle) * 52;
+        const my = heli.y + Math.sin(angle) * 52 + 6;
+
+        bullets.push({
+          x: mx,
+          y: my,
+          vx: Math.cos(angle) * 620 + heli.vx * 0.1,
+          vy: Math.sin(angle) * 620 + heli.vy * 0.1,
+          life: 1.35,
+          r: 7
+        });
+
+        addParticle({
+          x: mx,
+          y: my,
+          vx: Math.cos(angle) * 90,
+          vy: Math.sin(angle) * 90,
+          life: 0.13,
+          color: "#fff7ae",
+          size: 12
+        });
+
+        heli.vx -= Math.cos(angle) * 10;
+        heli.vy -= Math.sin(angle) * 7;
+
+        playShoot();
+      }
+
+      function winGame() {
+        won = true;
+        running = false;
+        playWin();
+
+        winTitle.textContent = "RORY HA SALVATO TUTTI I CUCCIOLI! 🎉";
+        winStats.innerHTML =
+          `Tempo: <strong>${Math.round(time)}s</strong><br>` +
+          `Panico massimo: <strong>${Math.round(stats.maxPanic)}%</strong><br>` +
+          `Cuccioli caduti: <strong>${stats.drops}</strong><br>` +
+          `Predatori storditi: <strong>${stats.enemiesStunned}</strong>`;
+
+        winScreen.classList.remove("hidden");
+      }
+
+      // ----------------------
+      // Update
+      // ----------------------
+      function updateHeli(dt) {
+        heli.rotor += dt * (22 + Math.hypot(heli.vx, heli.vy) * 0.035);
+
+        let target = input.target;
+
+        if (!target) {
+          let kx = 0;
+          let ky = 0;
+          if (keys.ArrowLeft || keys.KeyA) kx -= 1;
+          if (keys.ArrowRight || keys.KeyD) kx += 1;
+          if (keys.ArrowUp || keys.KeyW) ky -= 1;
+          if (keys.ArrowDown || keys.KeyS) ky += 1;
+
+          if (kx || ky) {
+            target = {
+              x: heli.x + kx * 280,
+              y: heli.y + ky * 280
+            };
+          }
+        }
+
+        let ax = 0;
+        let ay = 0;
+
+        if (target) {
+          const dx = target.x - heli.x;
+          const dy = target.y - heli.y;
+          const desiredVx = clamp(dx * 2.45, -450, 450);
+          const desiredVy = clamp(dy * 2.45, -450, 450);
+          ax = (desiredVx - heli.vx) * 4.8;
+          ay = (desiredVy - heli.vy) * 4.8;
+        } else {
+          ax = -heli.vx * 3.3;
+          ay = -heli.vy * 3.3;
+        }
+
+        heli.ax = ax;
+        heli.ay = ay;
+        heli.jerk = Math.hypot(ax, ay);
+
+        heli.vx += ax * dt;
+        heli.vy += ay * dt;
+
+        heli.vx = clamp(heli.vx, -470, 470);
+        heli.vy = clamp(heli.vy, -470, 470);
+
+        heli.x += heli.vx * dt;
+        heli.y += heli.vy * dt;
+
+        heli.x = clamp(heli.x, 45, WORLD_W - 45);
+
+        if (heli.y < 70) {
+          heli.y = 70;
+          heli.vy = Math.max(0, heli.vy);
+        }
+
+        const support = getSupportY(heli.x);
+        if (heli.y + 26 >= support) {
+          heli.y = support - 26;
+          heli.vy = 0;
+          heli.onGround = true;
+        } else {
+          heli.onGround = false;
+        }
+
+        heli.angle = clamp(heli.vx * 0.0015, -0.28, 0.28);
+
+        const aimTarget = nearestEnemy();
+        const desiredAim = aimTarget
+          ? Math.atan2(aimTarget.y - heli.y, aimTarget.x - heli.x)
+          : heli.angle;
+
+        let diff = ((desiredAim - heli.aimAngle + Math.PI) % PI2) - Math.PI;
+        if (diff < -Math.PI) diff += PI2;
+        heli.aimAngle += diff * Math.min(1, dt * 8);
+
+        if (heli.carrying.length > 0 && isInBaseZone(heli) && Math.hypot(heli.vx, heli.vy) < 230) {
+          const ids = heli.carrying.slice();
+          for (const id of ids) {
+            const p = getPuppy(id);
+            if (p && p.state === "attached") rescuePuppy(p);
+          }
+          heli.carrying = [];
+        }
+      }
+
+      function updateBoarding(dt) {
+        const speed = Math.hypot(heli.vx, heli.vy);
+
+        if (heli.onGround && speed < 110 && heli.carrying.length < heli.maxCarry) {
+          boardTimer -= dt;
+          if (boardTimer <= 0) {
+            const hookX = heli.x;
+            const hookY = heli.y + 36;
+            let best = null;
+            let bestD = 125;
+
+            for (const p of puppies) {
+              if (p.state !== "lost") continue;
+              const d = dist(hookX, hookY, p.x, p.y);
+              if (d < bestD) {
+                bestD = d;
+                best = p;
+              }
+            }
+
+            if (best) {
+              attachPuppy(best);
+              boardTimer = 0.32;
+            } else {
+              boardTimer = 0.12;
+            }
+          }
+        } else {
+          boardTimer = 0.18;
+        }
+      }
+
+      function updatePuppies(dt) {
+        for (const p of puppies) {
+          if (p.state === "attached") {
+            const idx = heli.carrying.indexOf(p.id);
+            if (idx < 0) {
+              p.state = "falling";
+              continue;
+            }
+
+            const count = heli.carrying.length;
+            const spread = (idx - (count - 1) / 2) * 18;
+            const rope = 54 + idx * 18;
+            const tx = heli.x + spread + Math.sin(animTime * 2.2 + idx) * 3;
+            const ty = heli.y + rope;
+
+            p.vx += (tx - p.x) * 10 * dt;
+            p.vy += (ty - p.y) * 10 * dt;
+            p.vx *= 0.9;
+            p.vy *= 0.9;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+
+            const sup = getSupportY(p.x) - 14;
+            if (p.y > sup) {
+              p.y = sup;
+              p.vy = Math.min(0, p.vy);
+            }
+
+            const strain = dist(p.x, p.y, tx, ty);
+            if (strain > 78) {
+              panic += (strain - 78) * 0.03 * dt;
+            }
+          } else if (p.state === "falling") {
+            p.vy += 980 * dt;
+            p.vy = Math.min(p.vy, 950);
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.x = clamp(p.x, 35, WORLD_W - 35);
+
+            if (p.x > RIVER.x1 + 15 && p.x < RIVER.x2 - 15) {
+              const sup = getSupportY(p.x);
+              if (sup > RIVER.surface + 20) {
+                p.x = p.x < RIVER.mid ? RIVER.x1 - 45 : RIVER.x2 + 45;
+              }
+            }
+
+            const support = getSupportY(p.x) - 16;
+            if (p.y >= support) {
+              p.y = support;
+              p.vy = 0;
+              p.vx = 0;
+              p.state = "lost";
+              addParticle({
+                x: p.x,
+                y: p.y + 8,
+                vy: -20,
+                life: 0.35,
+                color: "rgba(255,255,255,0.8)",
+                size: 14,
+                text: "·"
+              });
+            }
+          } else if (p.state === "danger") {
+            if (p.carrier && p.carrier.type === "eagle") {
+              p.x = p.carrier.x;
+              p.y = p.carrier.y + 32;
+            } else {
+              p.state = "falling";
+              p.carrier = null;
+            }
+          } else if (p.state === "lost") {
+            p.bob += dt * 3;
+            p.y = getSupportY(p.x) - 18;
+          }
+        }
+      }
+
+      function updateEagle(e, dt) {
+        e.flap += dt * (e.state === "dive" ? 18 : 9);
+
+        if (e.stun > 0) {
+          e.stun -= dt;
+          e.x += e.vx * dt;
+          e.y += e.vy * dt;
+          e.vx *= 0.96;
+          e.vy *= 0.96;
+
+          const t = getPuppy(e.targetId);
+          if (t && t.state === "danger" && t.carrier === e) {
+            dropEaglePuppy(t, e);
+          }
+
+          if (e.stun <= 0) {
+            e.state = "retreat";
+            e.targetId = null;
+          }
+          return;
+        }
+
+        if (e.state === "patrol") {
+          e.timer -= dt;
+          e.x += Math.cos(animTime * 0.55 + e.seed) * 55 * dt;
+          e.y = clamp(terrainY(e.x) - 430 + Math.sin(animTime * 0.8 + e.seed) * 35, 100, 1000);
+          e.x = clamp(e.x, 55, WORLD_W - 55);
+
+          if (e.timer <= 0) {
+            const t = findEagleTarget(e);
+            if (t) {
+              e.targetId = t.id;
+              e.state = "aim";
+              e.timer = 0.75;
+            } else {
+              e.timer = 1;
+            }
+          }
+        } else if (e.state === "aim") {
+          const t = getPuppy(e.targetId);
+          if (!eagleTargetValid(t)) {
+            e.state = "patrol";
+            e.timer = 1;
+            e.targetId = null;
+            return;
+          }
+
+          e.timer -= dt;
+          const tx = t.x;
+          const ty = t.y - 175;
+          e.x = lerp(e.x, tx, Math.min(1, dt * 2.1));
+          e.y = lerp(e.y, ty, Math.min(1, dt * 2.1));
+
+          if (e.timer <= 0) e.state = "dive";
+        } else if (e.state === "dive") {
+          const t = getPuppy(e.targetId);
+          if (!eagleTargetValid(t)) {
+            e.state = "patrol";
+            e.timer = 1;
+            e.targetId = null;
+            return;
+          }
+
+          const dx = t.x - e.x;
+          const dy = t.y - e.y;
+          const d = Math.hypot(dx, dy) || 1;
+          const speed = 330;
+
+          e.x += (dx / d) * speed * dt;
+          e.y += (dy / d) * speed * dt;
+
+          if (d < 42) {
+            grabByEagle(e, t);
+          }
+
+          if (e.y > WORLD_H + 80 || d > 520) {
+            e.state = "retreat";
+            e.targetId = null;
+          }
+        } else if (e.state === "carry") {
+          const t = getPuppy(e.targetId);
+          if (!t || t.state !== "danger" || t.carrier !== e) {
+            e.state = "retreat";
+            e.targetId = null;
+            return;
+          }
+
+          e.timer -= dt;
+          t.x = e.x;
+          t.y = e.y + 32;
+
+          e.y -= 78 * dt;
+          e.x += Math.sin(animTime * 3 + e.seed) * 35 * dt;
+
+          if (e.y < 110 || e.timer <= 0) {
+            dropEaglePuppy(t, e);
+            e.state = "retreat";
+          }
+        } else if (e.state === "retreat") {
+          e.y -= 170 * dt;
+          e.x += Math.sin(animTime * 2 + e.seed) * 55 * dt;
+          if (e.y < -110) respawnEagle(e);
+        }
+      }
+
+      function updateWolf(w, dt) {
+        w.y = terrainY(w.x) - 28;
+
+        if (w.scare > 0) {
+          w.scare -= dt;
+          w.x += w.vx * dt;
+          w.vx *= 0.95;
+          w.x = clamp(w.x, 45, WORLD_W - 45);
+          if (w.scare <= 0) {
+            w.state = "patrol";
+            w.timer = 1;
+          }
+          return;
+        }
+
+        if (w.state === "patrol") {
+          w.timer -= dt;
+          w.x += w.dir * w.speed * dt;
+
+          if (w.x < 65) {
+            w.x = 65;
+            w.dir = 1;
+          }
+          if (w.x > WORLD_W - 65) {
+            w.x = WORLD_W - 65;
+            w.dir = -1;
+          }
+
+          if (w.timer <= 0) {
+            const t = findWolfTarget(w);
+            if (t) {
+              w.targetId = t.id;
+              w.state = "chase";
+              w.timer = 0;
+            } else {
+              w.timer = 1;
+            }
+          }
+        } else if (w.state === "chase") {
+          const t = getPuppy(w.targetId);
+          if (!t || t.state !== "lost") {
+            w.state = "patrol";
+            w.timer = 1;
+            w.targetId = null;
+            return;
+          }
+
+          const support = getSupportY(t.x) - 18;
+          if (Math.abs(t.y - support) > 45) {
+            w.state = "patrol";
+            w.timer = 1;
+            w.targetId = null;
+            return;
+          }
+
+          const dir = Math.sign(t.x - w.x) || 1;
+          w.dir = dir;
+          w.x += dir * w.speed * 1.45 * dt;
+          w.x = clamp(w.x, 45, WORLD_W - 45);
+
+          if (Math.abs(t.x - w.x) < 55 && Math.abs(t.y - w.y) < 85) {
+            w.timer += dt;
+            if (w.timer > 1.5) {
+              wolfScarePuppy(t, w);
+              w.timer = 0;
+              w.scare = 0.7;
+              w.state = "patrol";
+              w.targetId = null;
+            }
+          } else {
+            w.timer = 0;
+          }
+        }
+      }
+
+      function updateEnemies(dt) {
+        for (const e of eagles) updateEagle(e, dt);
+        for (const w of wolves) updateWolf(w, dt);
+
+        if (rescued >= 2 && eagles.length < 2) {
+          eagles.push(makeEagle(heli.x + (Math.random() < 0.5 ? -750 : 750)));
+        }
+        if (rescued >= 3 && wolves.length < 2) {
+          wolves.push(makeWolf(heli.x + (Math.random() < 0.5 ? -650 : 650)));
+        }
       }
 
       function updateBullets(dt) {
         for (let i = bullets.length - 1; i >= 0; i--) {
           const b = bullets[i];
           b.life -= dt;
+          b.vy += 80 * dt;
           b.x += b.vx * dt;
           b.y += b.vy * dt;
-          b.vy += 30 * dt;
 
           if (
             b.life <= 0 ||
-            b.x < -60 || b.x > W + 60 ||
-            b.y < -60 || b.y > H + 60
+            b.x < -80 ||
+            b.x > WORLD_W + 80 ||
+            b.y < -80 ||
+            b.y > WORLD_H + 80
           ) {
             bullets.splice(i, 1);
             continue;
@@ -1159,7 +1376,7 @@
 
           for (const e of eagles) {
             if (e.stun > 0) continue;
-            if (dist(b.x, b.y, e.x, e.y) < 36) {
+            if (dist(b.x, b.y, e.x, e.y) < 40) {
               hitEagle(e, b);
               hit = true;
               break;
@@ -1169,7 +1386,7 @@
           if (!hit) {
             for (const w of wolves) {
               if (w.scare > 0) continue;
-              if (dist(b.x, b.y, w.x, w.y) < 34) {
+              if (dist(b.x, b.y, w.x, w.y) < 36) {
                 hitWolf(w, b);
                 hit = true;
                 break;
@@ -1185,191 +1402,449 @@
         let inc = 0;
 
         if (heli.carrying.length > 0) {
-          inc += heli.jerk * 0.0022 + heli.carrying.length * 0.55;
+          inc += heli.jerk * 0.0016 + heli.carrying.length * 0.45;
         }
 
         for (const e of eagles) {
           if (e.stun <= 0 && (e.state === "aim" || e.state === "dive" || e.state === "carry")) {
-            if (dist(e.x, e.y, heli.x, heli.y) < 240) inc += 4.5;
+            if (dist(e.x, e.y, heli.x, heli.y) < 280) inc += 4.8;
           }
         }
 
         for (const w of wolves) {
           if (w.scare <= 0 && w.state === "chase") {
             const t = getPuppy(w.targetId);
-            if (t && dist(w.x, w.y, t.x, t.y) < 180) inc += 3.5;
+            if (t && dist(w.x, w.y, t.x, t.y) < 200) inc += 3.6;
           }
         }
 
-        if (isInDoghouseZone(heli)) inc -= 18;
+        if (isInBaseZone(heli)) inc -= 32;
+        if (heli.onGround && heli.carrying.length === 0) inc -= 12;
 
         if (inc > 0) panic += inc * dt;
-        else panic -= 7 * dt;
+        else panic -= 8 * dt;
 
         panic = clamp(panic, 0, 100);
         stats.maxPanic = Math.max(stats.maxPanic, panic);
 
         if (
-          panic > 88 &&
+          panic > 90 &&
           heli.carrying.length > 0 &&
-          Math.random() < (panic - 88) * 0.03 * dt
+          Math.random() < (panic - 90) * 0.035 * dt
         ) {
           const id = heli.carrying[heli.carrying.length - 1];
           const p = getPuppy(id);
-          if (p) dropPuppyToGround(p, "panic");
+          if (p) dropPuppyToGround(p);
         }
-      }
-
-      function tryFire() {
-        if (!running || won) return;
-        if (overheat || heat >= 100) return;
-        if (time - lastFire < 0.16) return;
-
-        lastFire = time;
-        heat = Math.min(100, heat + 9);
-        if (heat >= 100) overheat = true;
-        stats.shots++;
-
-        const angle = heli.aimAngle;
-        const mx = heli.x + Math.cos(angle) * 46;
-        const my = heli.y + Math.sin(angle) * 46;
-
-        bullets.push({
-          x: mx,
-          y: my,
-          vx: Math.cos(angle) * 540 + heli.vx * 0.12,
-          vy: Math.sin(angle) * 540 + heli.vy * 0.12,
-          life: 1.6,
-          r: 7
-        });
-
-        addParticle({
-          x: mx,
-          y: my,
-          vx: Math.cos(angle) * 90,
-          vy: Math.sin(angle) * 90,
-          life: 0.14,
-          color: "#fff7ae",
-          size: 12
-        });
-
-        heli.vx -= Math.cos(angle) * 12;
-        heli.vy -= Math.sin(angle) * 8;
-
-        playShoot();
       }
 
       function update(dt) {
         time += dt;
-
-        if (heat > 0) heat = Math.max(0, heat - 20 * dt);
-        if (overheat && heat < 45) overheat = false;
+        fireCooldown = Math.max(0, fireCooldown - dt);
 
         updateHeli(dt);
-        updateSling(dt);
+        updateBoarding(dt);
         updatePuppies(dt);
         updateEnemies(dt);
         updateBullets(dt);
         updateParticles(dt);
         updatePanic(dt);
 
-        if (input.fire) tryFire();
+        if (input.fire) fireCannon();
 
         if (rescued >= 5 && !won) winGame();
       }
 
-      // ---------- draw ----------
-      function drawSky() {
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, "#79c7ff");
-        g.addColorStop(0.65, "#cdeeff");
-        g.addColorStop(1, "#f7fbff");
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, W, H);
+      function updateCamera(dt) {
+        const tx = heli.x + heli.vx * 0.12;
+        const ty = heli.y + heli.vy * 0.08 - 40;
 
-        ctx.fillStyle = "rgba(255, 245, 150, 0.95)";
+        camera.x = lerp(camera.x, tx, Math.min(1, dt * 3.6));
+        camera.y = lerp(camera.y, ty, Math.min(1, dt * 3.2));
+
+        const halfW = cssW / (2 * zoom);
+        const halfH = cssH / (2 * zoom);
+
+        camera.x = clamp(camera.x, halfW, WORLD_W - halfW);
+        camera.y = clamp(camera.y, halfH, WORLD_H - halfH);
+      }
+
+      // ----------------------
+      // Draw
+      // ----------------------
+      let viewLeft = 0;
+      let viewRight = 0;
+
+      function visible(x, margin = 160) {
+        return x > viewLeft - margin && x < viewRight + margin;
+      }
+
+      function drawSkyScreen() {
+        const g = ctx.createLinearGradient(0, 0, 0, cssH);
+        g.addColorStop(0, "#6ec6ff");
+        g.addColorStop(0.58, "#bde9ff");
+        g.addColorStop(1, "#f4fbff");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, cssW, cssH);
+
+        ctx.fillStyle = "rgba(255, 244, 140, 0.95)";
         ctx.beginPath();
-        ctx.arc(100, 90, 38, 0, PI2);
+        ctx.arc(cssW * 0.18, cssH * 0.12, Math.min(cssW, cssH) * 0.055, 0, PI2);
+        ctx.fill();
+
+        for (const c of clouds) {
+          let x = c.x - camera.x * c.p + animTime * c.sp;
+          const span = cssW + 420;
+          x = ((x % span) + span) % span;
+          x -= 210;
+
+          ctx.save();
+          ctx.globalAlpha = 0.78;
+          ctx.fillStyle = "#fff";
+          ctx.beginPath();
+          ctx.ellipse(x, c.y, 34 * c.s, 18 * c.s, 0, 0, PI2);
+          ctx.ellipse(x + 28 * c.s, c.y + 5 * c.s, 25 * c.s, 15 * c.s, 0, 0, PI2);
+          ctx.ellipse(x - 25 * c.s, c.y + 6 * c.s, 23 * c.s, 14 * c.s, 0, 0, PI2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      function drawHillsLayer(color, amp, freq, parallax, baseRatio) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(0, cssH);
+
+        for (let x = 0; x <= cssW; x += 18) {
+          const wx = x + camera.x * parallax;
+          const y =
+            cssH * baseRatio +
+            Math.sin(wx * freq) * amp +
+            Math.sin(wx * freq * 2.3 + 1.2) * amp * 0.35;
+          ctx.lineTo(x, y);
+        }
+
+        ctx.lineTo(cssW, cssH);
+        ctx.closePath();
         ctx.fill();
       }
 
-      function drawCloud(x, y, s) {
-        ctx.save();
-        ctx.globalAlpha = 0.78;
-        ctx.fillStyle = "#fff";
+      function drawDistantHills() {
+        drawHillsLayer("#9fd790", 48, 0.0038, 0.1, 0.57);
+        drawHillsLayer("#7fc56f", 68, 0.0055, 0.18, 0.65);
+      }
+
+      function drawTerrain() {
+        const startX = Math.max(0, Math.floor(viewLeft - 40));
+        const endX = Math.min(WORLD_W, Math.ceil(viewRight + 40));
+
         ctx.beginPath();
-        ctx.ellipse(x, y, 32 * s, 18 * s, 0, 0, PI2);
-        ctx.ellipse(x + 26 * s, y + 5 * s, 24 * s, 15 * s, 0, 0, PI2);
-        ctx.ellipse(x - 24 * s, y + 6 * s, 22 * s, 14 * s, 0, 0, PI2);
+        ctx.moveTo(startX, WORLD_H);
+        for (let x = startX; x <= endX; x += 22) {
+          ctx.lineTo(x, terrainY(x));
+        }
+        ctx.lineTo(endX, WORLD_H);
+        ctx.closePath();
+
+        const dirt = ctx.createLinearGradient(0, GROUND_BASE - 120, 0, WORLD_H);
+        dirt.addColorStop(0, "#8b6b4a");
+        dirt.addColorStop(1, "#5d442f");
+        ctx.fillStyle = dirt;
+        ctx.fill();
+
+        ctx.beginPath();
+        for (let x = startX; x <= endX; x += 22) {
+          const y = terrainY(x);
+          if (x === startX) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.lineWidth = 26;
+        ctx.strokeStyle = "#69b34c";
+        ctx.stroke();
+
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "#4f8f39";
+        ctx.stroke();
+      }
+
+      function drawRiver() {
+        const startX = Math.max(RIVER.x1, viewLeft - 50);
+        const endX = Math.min(RIVER.x2, viewRight + 50);
+        if (startX >= endX) return;
+
+        ctx.beginPath();
+        for (let x = startX; x <= endX; x += 18) {
+          const y = RIVER.surface + Math.sin(x * 0.02 + animTime * 2) * 3;
+          if (x === startX) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        for (let x = endX; x >= startX; x -= 18) {
+          ctx.lineTo(x, terrainY(x));
+        }
+        ctx.closePath();
+
+        const wg = ctx.createLinearGradient(0, RIVER.surface - 20, 0, RIVER.bed + 30);
+        wg.addColorStop(0, "#79d0ff");
+        wg.addColorStop(1, "#287dae");
+        ctx.fillStyle = wg;
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(255,255,255,0.45)";
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 5; i++) {
+          ctx.beginPath();
+          const yy = RIVER.surface + 12 + i * 10;
+          for (let x = startX; x <= endX; x += 22) {
+            const y = yy + Math.sin(x * 0.035 + animTime * 2.5 + i) * 2.5;
+            if (x === startX) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+      }
+
+      function drawTree(t) {
+        if (!visible(t.x, 180)) return;
+
+        ctx.save();
+        ctx.translate(t.x, t.y);
+        const s = t.scale;
+
+        ctx.fillStyle = "rgba(0,0,0,0.12)";
+        ctx.beginPath();
+        ctx.ellipse(0, 2, 18 * s, 5 * s, 0, 0, PI2);
+        ctx.fill();
+
+        if (t.type === "pine") {
+          ctx.fillStyle = "#6d4c41";
+          ctx.fillRect(-4 * s, -22 * s, 8 * s, 24 * s);
+
+          ctx.fillStyle = "#2e7d32";
+          ctx.beginPath();
+          ctx.moveTo(0, -76 * s);
+          ctx.lineTo(-28 * s, -20 * s);
+          ctx.lineTo(28 * s, -20 * s);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = "#388e3c";
+          ctx.beginPath();
+          ctx.moveTo(0, -58 * s);
+          ctx.lineTo(-23 * s, -8 * s);
+          ctx.lineTo(23 * s, -8 * s);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          ctx.fillStyle = "#6d4c41";
+          ctx.fillRect(-5 * s, -30 * s, 10 * s, 32 * s);
+
+          ctx.fillStyle = "#43a047";
+          ctx.beginPath();
+          ctx.arc(0, -48 * s, 25 * s, 0, PI2);
+          ctx.arc(-18 * s, -36 * s, 18 * s, 0, PI2);
+          ctx.arc(18 * s, -36 * s, 18 * s, 0, PI2);
+          ctx.fill();
+
+          ctx.fillStyle = "#66bb6a";
+          ctx.beginPath();
+          ctx.arc(-6 * s, -54 * s, 12 * s, 0, PI2);
+          ctx.arc(12 * s, -45 * s, 10 * s, 0, PI2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+
+      function drawRock(r) {
+        if (!visible(r.x, 120)) return;
+        ctx.save();
+        ctx.translate(r.x, r.y);
+        ctx.fillStyle = "#9aa0a6";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r.size, r.size * 0.68, 0, 0, PI2);
+        ctx.fill();
+        ctx.fillStyle = "#cfd8dc";
+        ctx.beginPath();
+        ctx.ellipse(-r.size * 0.22, -r.size * 0.18, r.size * 0.34, r.size * 0.2, -0.4, 0, PI2);
         ctx.fill();
         ctx.restore();
       }
 
-      function drawClouds() {
-        const offsets = [0, 320, 680];
-        offsets.forEach((off, i) => {
-          const x = ((time * (10 + i * 4) + off) % (W + 240)) - 120;
-          drawCloud(x, 85 + i * 42, 0.85 + i * 0.12);
-        });
+      function drawBush(b) {
+        if (!visible(b.x, 100)) return;
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.fillStyle = "#4caf50";
+        ctx.beginPath();
+        ctx.arc(0, 0, b.size, 0, PI2);
+        ctx.arc(-b.size * 0.7, b.size * 0.15, b.size * 0.75, 0, PI2);
+        ctx.arc(b.size * 0.7, b.size * 0.12, b.size * 0.72, 0, PI2);
+        ctx.fill();
+        ctx.restore();
       }
 
-      function drawHills() {
-        ctx.fillStyle = "#9bd486";
+      function drawFlower(f) {
+        if (!visible(f.x, 60)) return;
+        ctx.save();
+        ctx.translate(f.x, f.y);
+        ctx.strokeStyle = "#4caf50";
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(0, GROUND_Y);
-        ctx.quadraticCurveTo(W * 0.22, GROUND_Y - 95, W * 0.48, GROUND_Y);
-        ctx.quadraticCurveTo(W * 0.72, GROUND_Y - 70, W, GROUND_Y);
-        ctx.lineTo(W, H);
-        ctx.lineTo(0, H);
-        ctx.closePath();
-        ctx.fill();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -10);
+        ctx.stroke();
 
-        ctx.fillStyle = "#82c46d";
+        ctx.fillStyle = f.hue < 0.33 ? "#ff6b81" : f.hue < 0.66 ? "#ffd166" : "#a29bfe";
         ctx.beginPath();
-        ctx.moveTo(0, GROUND_Y + 12);
-        ctx.quadraticCurveTo(W * 0.3, GROUND_Y - 45, W * 0.62, GROUND_Y + 12);
-        ctx.quadraticCurveTo(W * 0.82, GROUND_Y - 20, W, GROUND_Y + 12);
-        ctx.lineTo(W, H);
-        ctx.lineTo(0, H);
-        ctx.closePath();
+        ctx.arc(0, -12, 3.2, 0, PI2);
         ctx.fill();
+        ctx.restore();
       }
 
-      function drawBuildings() {
-        for (const b of BUILDINGS) {
-          const h = GROUND_Y - b.y;
+      function drawPlatform(p) {
+        if (!visible(p.x + p.w / 2, 180)) return;
 
-          ctx.fillStyle = "#7a5c49";
-          ctx.fillRect(b.x, b.y, b.w, h);
+        if (p.type === "hay") {
+          ctx.fillStyle = "#f4d03f";
+          rr(p.x, p.y, p.w, p.h, 10);
+          ctx.fill();
 
-          ctx.fillStyle = "#5d4037";
-          ctx.fillRect(b.x - 5, b.y - 9, b.w + 10, 10);
-
-          ctx.fillStyle = "rgba(255, 235, 150, 0.75)";
-          for (let wy = b.y + 20; wy < GROUND_Y - 24; wy += 30) {
-            for (let wx = b.x + 14; wx < b.x + b.w - 18; wx += 30) {
-              ctx.fillRect(wx, wy, 14, 16);
-            }
+          ctx.strokeStyle = "#d4ac0d";
+          ctx.lineWidth = 2;
+          for (let x = p.x + 12; x < p.x + p.w - 8; x += 16) {
+            ctx.beginPath();
+            ctx.moveTo(x, p.y + 6);
+            ctx.lineTo(x, p.y + p.h - 6);
+            ctx.stroke();
           }
+        } else if (p.type === "rock") {
+          ctx.fillStyle = "#95a5a6";
+          ctx.beginPath();
+          ctx.ellipse(p.x + p.w / 2, p.y + p.h * 0.58, p.w * 0.56, p.h * 0.66, 0, 0, PI2);
+          ctx.fill();
+
+          ctx.fillStyle = "#bdc3c7";
+          ctx.beginPath();
+          ctx.ellipse(p.x + p.w * 0.38, p.y + p.h * 0.38, p.w * 0.18, p.h * 0.12, -0.35, 0, PI2);
+          ctx.fill();
+        } else if (p.type === "log") {
+          ctx.fillStyle = "#7a5230";
+          rr(p.x, p.y, p.w, p.h, 14);
+          ctx.fill();
+
+          ctx.fillStyle = "#a0704a";
+          ctx.beginPath();
+          ctx.ellipse(p.x + p.w - 10, p.y + p.h / 2, 10, p.h / 2 - 2, 0, 0, PI2);
+          ctx.fill();
+
+          ctx.strokeStyle = "#6b4423";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.ellipse(p.x + p.w - 10, p.y + p.h / 2, 5, p.h / 4, 0, 0, PI2);
+          ctx.stroke();
+        } else if (p.type === "bridge") {
+          ctx.fillStyle = "#8d6e63";
+          ctx.fillRect(p.x, p.y, p.w, 10);
+
+          ctx.strokeStyle = "#5d4037";
+          ctx.lineWidth = 2;
+          for (let x = p.x + 10; x < p.x + p.w; x += 22) {
+            ctx.beginPath();
+            ctx.moveTo(x, p.y);
+            ctx.lineTo(x, p.y + 10);
+            ctx.stroke();
+          }
+
+          ctx.fillStyle = "#6d4c41";
+          ctx.fillRect(p.x + 8, p.y - 18, 6, 18);
+          ctx.fillRect(p.x + p.w - 14, p.y - 18, 6, 18);
+          ctx.fillRect(p.x + 8, p.y - 18, p.w - 16, 4);
         }
       }
 
-      function drawGround() {
-        ctx.fillStyle = "#6aa84f";
-        ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+      function drawFarm(f) {
+        if (!visible(f.x + f.w / 2, 280)) return;
 
-        ctx.fillStyle = "rgba(0,0,0,0.08)";
-        for (let x = 0; x < W; x += 42) {
-          ctx.fillRect(x, GROUND_Y + 18, 22, 4);
+        ctx.fillStyle = "rgba(0,0,0,0.12)";
+        ctx.beginPath();
+        ctx.ellipse(f.x + f.w / 2, f.y + f.h + 6, f.w * 0.48, 10, 0, 0, PI2);
+        ctx.fill();
+
+        if (f.type === "barn") {
+          ctx.fillStyle = "#b03a2e";
+          rr(f.x, f.y + 24, f.w, f.h - 24, 8);
+          ctx.fill();
+
+          ctx.fillStyle = "#7b241c";
+          ctx.beginPath();
+          ctx.moveTo(f.x - 14, f.y + 30);
+          ctx.lineTo(f.x + f.w / 2, f.y - 20);
+          ctx.lineTo(f.x + f.w + 14, f.y + 30);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = "#f5cba7";
+          ctx.fillRect(f.x + f.w / 2 - 28, f.y + f.h - 58, 56, 58);
+
+          ctx.strokeStyle = "#7b241c";
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(f.x + f.w / 2, f.y + f.h - 58);
+          ctx.lineTo(f.x + f.w / 2, f.y + f.h);
+          ctx.moveTo(f.x + f.w / 2 - 28, f.y + f.h - 29);
+          ctx.lineTo(f.x + f.w / 2 + 28, f.y + f.h - 29);
+          ctx.stroke();
+
+          ctx.fillStyle = "#d5d8dc";
+          const siloX = f.x + f.w + 18;
+          const siloY = terrainY(siloX + 22) - 112;
+          rr(siloX, siloY, 44, 112, 10);
+          ctx.fill();
+
+          ctx.fillStyle = "#aab7b8";
+          ctx.beginPath();
+          ctx.moveTo(siloX - 4, siloY + 12);
+          ctx.lineTo(siloX + 22, siloY - 18);
+          ctx.lineTo(siloX + 48, siloY + 12);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          ctx.fillStyle = "#f7dc9f";
+          rr(f.x, f.y + 22, f.w, f.h - 22, 7);
+          ctx.fill();
+
+          ctx.fillStyle = "#6e4b3a";
+          ctx.beginPath();
+          ctx.moveTo(f.x - 12, f.y + 28);
+          ctx.lineTo(f.x + f.w / 2, f.y - 16);
+          ctx.lineTo(f.x + f.w + 12, f.y + 28);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = "#8b5a2b";
+          ctx.fillRect(f.x + f.w / 2 - 18, f.y + f.h - 48, 36, 48);
+
+          ctx.fillStyle = "#aed6f1";
+          ctx.fillRect(f.x + 24, f.y + 48, 34, 28);
+          ctx.fillRect(f.x + f.w - 58, f.y + 48, 34, 28);
+
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 3;
+          ctx.strokeRect(f.x + 24, f.y + 48, 34, 28);
+          ctx.strokeRect(f.x + f.w - 58, f.y + 48, 34, 28);
+
+          ctx.fillStyle = "#c0392b";
+          ctx.fillRect(f.x + f.w - 44, f.y - 8, 16, 28);
         }
-      }
-
-      function drawMiniPuppy(x, y, fur, patch, scale = 0.55) {
-        drawPuppySprite(x, y, fur, patch, scale, "happy", time * 6 + x);
       }
 
       function drawDoghouse() {
-        const d = DOGHOUSE;
+        const d = doghouse;
+
+        ctx.fillStyle = "rgba(0,0,0,0.13)";
+        ctx.beginPath();
+        ctx.ellipse(d.cx, d.groundY + 4, d.w * 0.52, 10, 0, 0, PI2);
+        ctx.fill();
 
         ctx.fillStyle = "#8d5524";
         rr(d.x, d.y + 28, d.w, d.h - 28, 10);
@@ -1377,31 +1852,33 @@
 
         ctx.fillStyle = "#c0392b";
         ctx.beginPath();
-        ctx.moveTo(d.x - 12, d.y + 34);
-        ctx.lineTo(d.x + d.w / 2, d.y - 14);
-        ctx.lineTo(d.x + d.w + 12, d.y + 34);
+        ctx.moveTo(d.x - 14, d.y + 34);
+        ctx.lineTo(d.cx, d.y - 16);
+        ctx.lineTo(d.x + d.w + 14, d.y + 34);
         ctx.closePath();
         ctx.fill();
 
         ctx.fillStyle = "#2c1810";
         ctx.beginPath();
-        ctx.arc(d.x + d.w / 2, d.y + d.h - 24, 28, Math.PI, 0);
-        ctx.rect(d.x + d.w / 2 - 28, d.y + d.h - 24, 56, 24);
+        ctx.arc(d.cx, d.groundY - 26, 30, Math.PI, 0);
+        ctx.rect(d.cx - 30, d.groundY - 26, 60, 26);
         ctx.fill();
 
         ctx.fillStyle = "#fff1c9";
-        ctx.font = "bold 16px system-ui";
+        ctx.font = "bold 17px system-ui";
         ctx.textAlign = "center";
-        ctx.fillText("RORY", d.x + d.w / 2, d.y + 18);
+        ctx.fillText("RORY", d.cx, d.y + 20);
 
         for (let i = 0; i < rescued; i++) {
           const data = PUPPY_DATA[i] || PUPPY_DATA[0];
-          drawMiniPuppy(
-            d.x + 32 + i * 30,
-            d.y + d.h - 26,
+          drawPuppySprite(
+            d.x + 34 + i * 30,
+            d.groundY - 24,
             data.fur,
             data.patch,
-            0.5
+            0.52,
+            "happy",
+            animTime * 5 + i
           );
         }
       }
@@ -1411,7 +1888,11 @@
         ctx.translate(x, y);
         ctx.scale(scale, scale);
 
-        // coda
+        ctx.fillStyle = "rgba(0,0,0,0.12)";
+        ctx.beginPath();
+        ctx.ellipse(0, 16, 14, 4, 0, 0, PI2);
+        ctx.fill();
+
         ctx.strokeStyle = fur;
         ctx.lineWidth = 4;
         ctx.beginPath();
@@ -1419,25 +1900,21 @@
         ctx.quadraticCurveTo(-20, -4 + Math.sin(tailPhase) * 6, -17, 8);
         ctx.stroke();
 
-        // corpo
         ctx.fillStyle = fur;
         ctx.beginPath();
         ctx.ellipse(0, 4, 14, 10, 0, 0, PI2);
         ctx.fill();
 
-        // macchia
         ctx.fillStyle = patch;
         ctx.beginPath();
         ctx.ellipse(4, 2, 7, 6, 0.2, 0, PI2);
         ctx.fill();
 
-        // testa
         ctx.fillStyle = fur;
         ctx.beginPath();
         ctx.arc(-2, -8, 10, 0, PI2);
         ctx.fill();
 
-        // orecchie
         ctx.fillStyle = patch;
         ctx.beginPath();
         ctx.moveTo(-11, -13);
@@ -1454,26 +1931,22 @@
         ctx.closePath();
         ctx.fill();
 
-        // macchia occhio
         ctx.fillStyle = patch;
         ctx.beginPath();
         ctx.ellipse(-5, -10, 4, 3, 0, 0, PI2);
         ctx.fill();
 
-        // occhi
         ctx.fillStyle = "#1e1e1e";
-        const eyeR = face === "scared" ? 2.3 : 1.7;
+        const eyeR = face === "scared" ? 2.4 : 1.7;
         ctx.beginPath();
         ctx.arc(-5, -8, eyeR, 0, PI2);
         ctx.arc(2, -8, eyeR, 0, PI2);
         ctx.fill();
 
-        // naso
         ctx.beginPath();
         ctx.ellipse(-1, -4, 2.2, 1.6, 0, 0, PI2);
         ctx.fill();
 
-        // bocca
         ctx.strokeStyle = "#1e1e1e";
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -1493,19 +1966,22 @@
       function drawLostMarkers() {
         ctx.save();
         ctx.textAlign = "center";
+
         for (const p of puppies) {
-          if (p.state !== "lost") continue;
-          const pulse = Math.sin(time * 4 + p.bob);
+          if (p.state !== "lost" || !visible(p.x, 220)) continue;
+
+          const pulse = Math.sin(animTime * 4 + p.bob);
           ctx.strokeStyle = `rgba(255,255,255,${0.18 + 0.12 * pulse})`;
           ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.arc(p.x, p.y, 28 + pulse * 3, 0, PI2);
+          ctx.arc(p.x, p.y, 30 + pulse * 3, 0, PI2);
           ctx.stroke();
 
-          ctx.fillStyle = "rgba(255,255,255,0.82)";
-          ctx.font = "11px system-ui";
-          ctx.fillText(p.name, p.x, p.y - 34);
+          ctx.fillStyle = "rgba(255,255,255,0.86)";
+          ctx.font = "12px system-ui";
+          ctx.fillText(p.name, p.x, p.y - 36);
         }
+
         ctx.restore();
       }
 
@@ -1513,27 +1989,30 @@
         ctx.save();
         ctx.strokeStyle = "rgba(245,245,245,0.78)";
         ctx.lineWidth = 2;
+
         for (const p of puppies) {
           if (p.state !== "attached") continue;
           const hx = heli.x;
-          const hy = heli.y + 32;
+          const hy = heli.y + 34;
           const tx = p.x;
           const ty = p.y - 12;
           const mx = (hx + tx) / 2;
           const my = (hy + ty) / 2 + 10;
+
           ctx.beginPath();
           ctx.moveTo(hx, hy);
           ctx.quadraticCurveTo(mx, my, tx, ty);
           ctx.stroke();
         }
+
         ctx.restore();
       }
 
       function drawPuppies() {
         for (const p of puppies) {
-          if (p.state === "rescued") continue;
-          const face = (p.state === "danger" || panic > 70) ? "scared" : "happy";
-          drawPuppySprite(p.x, p.y, p.fur, p.patch, 1, face, time * 8 + p.id);
+          if (p.state === "rescued" || !visible(p.x, 120)) continue;
+          const face = p.state === "danger" || panic > 70 ? "scared" : "happy";
+          drawPuppySprite(p.x, p.y, p.fur, p.patch, 1, face, animTime * 8 + p.id);
 
           if (p.state === "danger") {
             ctx.save();
@@ -1551,19 +2030,16 @@
         ctx.translate(x, y);
         ctx.scale(s, s);
 
-        // testa bianca
         ctx.fillStyle = "#fffaf5";
         ctx.beginPath();
         ctx.ellipse(0, 0, 11, 10, 0, 0, PI2);
         ctx.fill();
 
-        // macchia rossa
         ctx.fillStyle = "#b5462d";
         ctx.beginPath();
         ctx.ellipse(-5, -3, 6, 5, 0, 0, PI2);
         ctx.fill();
 
-        // orecchie
         ctx.fillStyle = "#b5462d";
         ctx.beginPath();
         ctx.moveTo(-9, -7);
@@ -1580,19 +2056,16 @@
         ctx.closePath();
         ctx.fill();
 
-        // occhi
         ctx.fillStyle = "#1b1b1b";
         ctx.beginPath();
         ctx.arc(-4, -1, 1.7, 0, PI2);
         ctx.arc(4, -1, 1.7, 0, PI2);
         ctx.fill();
 
-        // naso
         ctx.beginPath();
         ctx.ellipse(0, 4, 2.2, 1.6, 0, 0, PI2);
         ctx.fill();
 
-        // bocca
         ctx.strokeStyle = "#1b1b1b";
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -1610,38 +2083,37 @@
         ctx.translate(heli.x, heli.y);
         ctx.rotate(heli.angle);
 
-        // sci
         ctx.strokeStyle = "#444";
         ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.moveTo(-24, 20);
-        ctx.lineTo(24, 20);
+        ctx.moveTo(-25, 20);
+        ctx.lineTo(25, 20);
         ctx.moveTo(-18, 14);
         ctx.lineTo(-18, 20);
         ctx.moveTo(18, 14);
         ctx.lineTo(18, 20);
         ctx.stroke();
 
-        // kodone
         ctx.fillStyle = "#d35400";
-        rr(-58, -6, 45, 10, 4);
+        rr(-60, -6, 46, 10, 4);
         ctx.fill();
 
-        // deriva
         ctx.fillStyle = "#b5462d";
         ctx.beginPath();
-        ctx.moveTo(-58, -6);
-        ctx.lineTo(-68, -20);
+        ctx.moveTo(-60, -6);
+        ctx.lineTo(-70, -21);
         ctx.lineTo(-50, -6);
         ctx.closePath();
         ctx.fill();
 
-        // corpo
-        ctx.fillStyle = "#e67e22";
+        ctx.fillStyle = "#fff7f0";
         rr(-28, -16, 58, 34, 14);
         ctx.fill();
 
-        // cockpit
+        ctx.fillStyle = "#b5462d";
+        rr(-28, 4, 58, 8, 4);
+        ctx.fill();
+
         ctx.fillStyle = "#fff8f2";
         rr(-18, -12, 34, 22, 10);
         ctx.fill();
@@ -1650,48 +2122,44 @@
         rr(-8, -12, 26, 20, 8);
         ctx.fill();
 
-        // Rory
         drawRoryFace(3, -2, 1.05);
 
-        // cannone orientabile
         ctx.save();
         ctx.rotate(heli.aimAngle - heli.angle);
         ctx.fillStyle = "#555";
-        rr(16, 4, 28, 8, 4);
+        rr(16, 4, 30, 8, 4);
         ctx.fill();
         ctx.fillStyle = "#333";
         ctx.beginPath();
-        ctx.arc(46, 8, 4.5, 0, PI2);
+        ctx.arc(48, 8, 4.5, 0, PI2);
         ctx.fill();
         ctx.restore();
 
-        // gancio
         ctx.strokeStyle = "#aaa";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(0, 18);
-        ctx.lineTo(0, 30);
+        ctx.lineTo(0, 32);
         ctx.stroke();
+
         ctx.fillStyle = "#bbb";
         ctx.beginPath();
-        ctx.arc(0, 32, 3, 0, PI2);
+        ctx.arc(0, 34, 3, 0, PI2);
         ctx.fill();
 
-        // mozzo rotore
         ctx.fillStyle = "#555";
         ctx.fillRect(-2, -26, 4, 10);
 
-        // rotore
         ctx.save();
         ctx.translate(0, -26);
         ctx.rotate(heli.rotor);
         ctx.strokeStyle = "rgba(30,30,30,0.45)";
         ctx.lineWidth = 5;
         ctx.beginPath();
-        ctx.moveTo(-58, 0);
-        ctx.lineTo(58, 0);
-        ctx.moveTo(0, -58);
-        ctx.lineTo(0, 58);
+        ctx.moveTo(-60, 0);
+        ctx.lineTo(60, 0);
+        ctx.moveTo(0, -60);
+        ctx.lineTo(0, 60);
         ctx.stroke();
         ctx.restore();
 
@@ -1699,39 +2167,41 @@
       }
 
       function drawEagle(e) {
+        if (!visible(e.x, 220)) return;
+
         ctx.save();
         ctx.translate(e.x, e.y);
 
-        const flap = Math.sin(e.flap) * 10;
+        const flap = Math.sin(e.flap) * 12;
 
         ctx.fillStyle = "#6d4c33";
         ctx.beginPath();
         ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(-18, -22 - flap, -42, -4 - flap * 0.5);
-        ctx.quadraticCurveTo(-22, 6, 0, 8);
+        ctx.quadraticCurveTo(-20, -24 - flap, -48, -4 - flap * 0.5);
+        ctx.quadraticCurveTo(-24, 7, 0, 9);
         ctx.fill();
 
         ctx.beginPath();
         ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(18, -22 - flap, 42, -4 - flap * 0.5);
-        ctx.quadraticCurveTo(22, 6, 0, 8);
+        ctx.quadraticCurveTo(20, -24 - flap, 48, -4 - flap * 0.5);
+        ctx.quadraticCurveTo(24, 7, 0, 9);
         ctx.fill();
 
         ctx.fillStyle = "#8b5e3c";
         ctx.beginPath();
-        ctx.ellipse(0, 3, 15, 11, 0, 0, PI2);
+        ctx.ellipse(0, 3, 16, 12, 0, 0, PI2);
         ctx.fill();
 
         ctx.fillStyle = "#f8f8f8";
         ctx.beginPath();
-        ctx.arc(11, -4, 8, 0, PI2);
+        ctx.arc(12, -4, 9, 0, PI2);
         ctx.fill();
 
         ctx.fillStyle = "#f1c40f";
         ctx.beginPath();
-        ctx.moveTo(17, -4);
-        ctx.lineTo(25, -1);
-        ctx.lineTo(17, 2);
+        ctx.moveTo(18, -4);
+        ctx.lineTo(28, -1);
+        ctx.lineTo(18, 2);
         ctx.closePath();
         ctx.fill();
 
@@ -1739,15 +2209,15 @@
           ctx.strokeStyle = "#111";
           ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.moveTo(8, -7);
-          ctx.lineTo(12, -3);
-          ctx.moveTo(12, -7);
-          ctx.lineTo(8, -3);
+          ctx.moveTo(9, -7);
+          ctx.lineTo(14, -2);
+          ctx.moveTo(14, -7);
+          ctx.lineTo(9, -2);
           ctx.stroke();
         } else {
           ctx.fillStyle = "#111";
           ctx.beginPath();
-          ctx.arc(12, -5, 1.8, 0, PI2);
+          ctx.arc(13, -5, 1.9, 0, PI2);
           ctx.fill();
         }
 
@@ -1756,9 +2226,9 @@
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.moveTo(-2, 12);
-          ctx.lineTo(-2, 20);
-          ctx.moveTo(4, 12);
-          ctx.lineTo(4, 20);
+          ctx.lineTo(-2, 22);
+          ctx.moveTo(5, 12);
+          ctx.lineTo(5, 22);
           ctx.stroke();
         }
 
@@ -1772,14 +2242,14 @@
             ctx.lineWidth = 2;
             ctx.setLineDash([6, 6]);
             ctx.beginPath();
-            ctx.arc(t.x, t.y, 32 + Math.sin(time * 10) * 3, 0, PI2);
+            ctx.arc(t.x, t.y, 34 + Math.sin(animTime * 10) * 3, 0, PI2);
             ctx.stroke();
             ctx.setLineDash([]);
 
             ctx.fillStyle = "#e74c3c";
             ctx.font = "bold 22px system-ui";
             ctx.textAlign = "center";
-            ctx.fillText("!", e.x, e.y - 28);
+            ctx.fillText("!", e.x, e.y - 30);
             ctx.restore();
           }
         }
@@ -1789,13 +2259,15 @@
           ctx.fillStyle = "#ffd166";
           ctx.font = "18px system-ui";
           ctx.textAlign = "center";
-          ctx.fillText("★", e.x - 10, e.y - 22);
-          ctx.fillText("★", e.x + 12, e.y - 18);
+          ctx.fillText("★", e.x - 12, e.y - 24);
+          ctx.fillText("★", e.x + 14, e.y - 19);
           ctx.restore();
         }
       }
 
       function drawWolf(w) {
+        if (!visible(w.x, 180)) return;
+
         ctx.save();
         ctx.translate(w.x, w.y);
         ctx.scale(w.dir < 0 ? -1 : 1, 1);
@@ -1804,12 +2276,12 @@
         ctx.lineWidth = 6;
         ctx.beginPath();
         ctx.moveTo(-20, 0);
-        ctx.quadraticCurveTo(-32, -8 + Math.sin(time * 5) * 3, -28, 6);
+        ctx.quadraticCurveTo(-34, -8 + Math.sin(animTime * 5) * 3, -29, 7);
         ctx.stroke();
 
         ctx.fillStyle = "#95a5a6";
         ctx.beginPath();
-        ctx.ellipse(0, 0, 24, 13, 0, 0, PI2);
+        ctx.ellipse(0, 0, 25, 13, 0, 0, PI2);
         ctx.fill();
 
         ctx.fillStyle = "#aab7b8";
@@ -1820,21 +2292,21 @@
         ctx.fillStyle = "#7f8c8d";
         ctx.beginPath();
         ctx.moveTo(12, -14);
-        ctx.lineTo(16, -24);
+        ctx.lineTo(16, -25);
         ctx.lineTo(22, -14);
         ctx.closePath();
         ctx.fill();
 
         ctx.beginPath();
         ctx.moveTo(24, -14);
-        ctx.lineTo(28, -24);
-        ctx.lineTo(32, -14);
+        ctx.lineTo(28, -25);
+        ctx.lineTo(33, -14);
         ctx.closePath();
         ctx.fill();
 
         ctx.fillStyle = "#d0d7d8";
         ctx.beginPath();
-        ctx.ellipse(28, -3, 7, 5, 0, 0, PI2);
+        ctx.ellipse(29, -3, 8, 5, 0, 0, PI2);
         ctx.fill();
 
         ctx.fillStyle = w.scare > 0 ? "#3498db" : "#222";
@@ -1844,7 +2316,7 @@
 
         ctx.fillStyle = "#222";
         ctx.beginPath();
-        ctx.arc(33, -3, 2, 0, PI2);
+        ctx.arc(34, -3, 2, 0, PI2);
         ctx.fill();
 
         ctx.restore();
@@ -1854,7 +2326,7 @@
           ctx.fillStyle = "#74c0fc";
           ctx.font = "18px system-ui";
           ctx.textAlign = "center";
-          ctx.fillText("💧", w.x + 12, w.y - 26);
+          ctx.fillText("💧", w.x + 13, w.y - 28);
           ctx.restore();
         }
 
@@ -1865,7 +2337,7 @@
             ctx.fillStyle = "#e74c3c";
             ctx.font = "bold 20px system-ui";
             ctx.textAlign = "center";
-            ctx.fillText("!", w.x, w.y - 34);
+            ctx.fillText("!", w.x, w.y - 36);
             ctx.restore();
           }
         }
@@ -1873,6 +2345,8 @@
 
       function drawBullets() {
         for (const b of bullets) {
+          if (!visible(b.x, 80)) continue;
+
           ctx.save();
           ctx.fillStyle = "#fff";
           ctx.strokeStyle = "rgba(0,0,0,0.18)";
@@ -1895,6 +2369,7 @@
           ctx.save();
           ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
           ctx.fillStyle = p.color;
+
           if (p.text) {
             ctx.font = `bold ${p.size}px system-ui`;
             ctx.textAlign = "center";
@@ -1905,12 +2380,14 @@
             ctx.arc(p.x, p.y, p.size, 0, PI2);
             ctx.fill();
           }
+
           ctx.restore();
         }
       }
 
       function drawBar(x, y, w, h, val, label, color) {
         ctx.save();
+
         ctx.fillStyle = "rgba(255,255,255,0.18)";
         rr(x, y, w, h, h / 2);
         ctx.fill();
@@ -1923,46 +2400,59 @@
         ctx.font = "11px system-ui";
         ctx.textAlign = "left";
         ctx.fillText(label, x, y - 5);
+
         ctx.restore();
       }
 
       function drawHUD() {
+        const panelW = Math.min(270, cssW - 24);
+        const panelH = 92;
+
         ctx.save();
         ctx.fillStyle = "rgba(12, 18, 28, 0.62)";
-        rr(12, 12, 292, 110, 14);
+        rr(12, 12, panelW, panelH, 14);
         ctx.fill();
 
         ctx.fillStyle = "#fff";
-        ctx.font = "bold 18px system-ui";
+        ctx.font = "bold 17px system-ui";
         ctx.textAlign = "left";
-        ctx.fillText("RORY & I 5 CUCCIOLI", 24, 36);
+        ctx.fillText("RORY & I 5 CUCCIOLI", 24, 34);
 
         ctx.font = "14px system-ui";
-        ctx.fillText(`Cuccioli: ${rescued}/5   Tempo: ${Math.round(time)}s`, 24, 56);
+        ctx.fillText(`Cuccioli: ${rescued}/5   Tempo: ${Math.round(time)}s`, 24, 54);
 
         const panicColor = panic < 50 ? "#2ecc71" : panic < 80 ? "#f1c40f" : "#e74c3c";
-        drawBar(24, 76, 190, 12, panic / 100, "PANICO", panicColor);
+        drawBar(24, 74, panelW - 48, 12, panic / 100, "PANICO", panicColor);
 
-        const heatColor = overheat ? "#e74c3c" : "#f39c12";
-        drawBar(24, 102, 190, 12, heat / 100, overheat ? "CALORE - RAFFREDDAMENTO" : "CALORE", heatColor);
-
-        ctx.fillStyle = "rgba(255,255,255,0.82)";
+        ctx.fillStyle = "rgba(255,255,255,0.84)";
         ctx.font = "12px system-ui";
-        ctx.fillText(heli.carrying.length ? `A bordo: ${heli.carrying.length}` : "A bordo: 0", 228, 88);
+        ctx.fillText(`A bordo: ${heli.carrying.length}`, panelW - 66, 54);
 
         ctx.restore();
       }
 
-      function draw() {
-        ctx.clearRect(0, 0, W, H);
+      function drawWorld() {
+        ctx.save();
+        ctx.translate(cssW / 2, cssH / 2);
+        ctx.scale(zoom, zoom);
+        ctx.translate(-camera.x, -camera.y);
 
-        drawSky();
-        drawClouds();
-        drawHills();
-        drawBuildings();
-        drawGround();
+        const halfW = cssW / (2 * zoom);
+        viewLeft = camera.x - halfW;
+        viewRight = camera.x + halfW;
+
+        drawTerrain();
+        drawRiver();
+
+        for (const f of flowers) drawFlower(f);
+        for (const b of bushes) drawBush(b);
+        for (const r of rocks) drawRock(r);
+        for (const t of trees) drawTree(t);
+
+        for (const p of platforms) drawPlatform(p);
+        for (const f of farmDefs) drawFarm(f);
+
         drawDoghouse();
-
         drawLostMarkers();
         drawRopes();
         drawPuppies();
@@ -1973,106 +2463,143 @@
         drawHeli();
         drawBullets();
         drawParticles();
+
+        ctx.restore();
+      }
+
+      function draw() {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, cssW, cssH);
+
+        drawSkyScreen();
+        drawDistantHills();
+        drawWorld();
         drawHUD();
       }
 
-      // ---------- loop ----------
-      function loop(ts) {
-        if (!lastTimestamp) lastTimestamp = ts;
-        const dt = Math.min((ts - lastTimestamp) / 1000, 0.033);
-        lastTimestamp = ts;
+      // ----------------------
+      // Resize / coordinate
+      // ----------------------
+      function resize() {
+        cssW = window.innerWidth;
+        cssH = window.innerHeight;
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-        if (running && !won) update(dt);
-        draw();
+        canvas.width = Math.floor(cssW * dpr);
+        canvas.height = Math.floor(cssH * dpr);
+        canvas.style.width = cssW + "px";
+        canvas.style.height = cssH + "px";
 
-        requestAnimationFrame(loop);
+        const targetW = 620;
+        const targetH = 1100;
+        zoom = clamp(Math.max(cssW / targetW, cssH / targetH), 0.5, 2.2);
       }
 
-      // ---------- input ----------
+      function screenToWorld(clientX, clientY) {
+        return {
+          x: camera.x + (clientX - cssW / 2) / zoom,
+          y: camera.y + (clientY - cssH / 2) / zoom
+        };
+      }
+
+      // ----------------------
+      // Input
+      // ----------------------
       canvas.addEventListener("pointerdown", (e) => {
         if (!running || won) return;
+        if (input.pointerId !== null) return;
+
         e.preventDefault();
-        const p = pointerToWorld(e);
-        input.pointerDown = true;
         input.pointerId = e.pointerId;
-        input.pointerX = p.x;
-        input.pointerY = p.y;
-        input.startX = p.x;
-        input.startY = p.y;
-        input.startT = performance.now();
+        input.down = true;
+        input.startCX = e.clientX;
+        input.startCY = e.clientY;
         input.moved = false;
-        canvas.setPointerCapture(e.pointerId);
+        input.target = screenToWorld(e.clientX, e.clientY);
+
+        try {
+          canvas.setPointerCapture(e.pointerId);
+        } catch (err) {}
       });
 
       canvas.addEventListener("pointermove", (e) => {
-        if (!input.pointerDown || e.pointerId !== input.pointerId) return;
+        if (!input.down || e.pointerId !== input.pointerId) return;
         e.preventDefault();
-        const p = pointerToWorld(e);
-        input.pointerX = p.x;
-        input.pointerY = p.y;
-        if (dist(p.x, p.y, input.startX, input.startY) > 10) {
+
+        input.target = screenToWorld(e.clientX, e.clientY);
+
+        if (Math.hypot(e.clientX - input.startCX, e.clientY - input.startCY) > 12) {
           input.moved = true;
         }
       });
 
       canvas.addEventListener("pointerup", (e) => {
-        if (!input.pointerDown || e.pointerId !== input.pointerId) return;
+        if (e.pointerId !== input.pointerId) return;
         e.preventDefault();
-        const p = pointerToWorld(e);
-        input.pointerDown = false;
 
         if (!input.moved) {
-          // tap: vai lì; se sei a terra, decolla
-          if (heli.onGround) {
-            heli.target = { x: p.x, y: Math.min(p.y, HELI_GROUND_Y - 140) };
-          } else {
-            heli.target = { x: p.x, y: p.y };
-          }
+          input.target = screenToWorld(e.clientX, e.clientY);
         } else {
-          // rilascio dopo drag: hover
-          heli.target = null;
+          input.target = null;
         }
+
+        input.down = false;
+        input.pointerId = null;
       });
 
       canvas.addEventListener("pointercancel", () => {
-        input.pointerDown = false;
-        heli.target = null;
+        input.down = false;
+        input.pointerId = null;
+        input.target = null;
       });
 
       canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
-      function bindHoldButton(btn, setter) {
-        btn.addEventListener("pointerdown", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setter(true);
-        });
-        btn.addEventListener("pointerup", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setter(false);
-        });
-        btn.addEventListener("pointercancel", () => setter(false));
-        btn.addEventListener("pointerleave", () => setter(false));
-        btn.addEventListener("contextmenu", (e) => e.preventDefault());
-      }
+      fireBtn.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        input.fire = true;
+      });
 
-      bindHoldButton(slingBtn, (v) => input.sling = v);
-      bindHoldButton(fireBtn, (v) => input.fire = v);
+      fireBtn.addEventListener("pointerup", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        input.fire = false;
+      });
+
+      fireBtn.addEventListener("pointercancel", () => {
+        input.fire = false;
+      });
+
+      fireBtn.addEventListener("pointerleave", () => {
+        input.fire = false;
+      });
+
+      fireBtn.addEventListener("contextmenu", (e) => e.preventDefault());
 
       window.addEventListener("keydown", (e) => {
+        keys[e.code] = true;
+
         if (e.code === "Space") {
           input.fire = true;
           e.preventDefault();
         }
-        if (e.code === "KeyS") {
-          input.sling = true;
-        }
       });
 
       window.addEventListener("keyup", (e) => {
-        if (e.code === "Space") input.fire = false;
-        if (e.code === "KeyS") input.sling = false;
+        keys[e.code] = false;
+
+        if (e.code === "Space") {
+          input.fire = false;
+        }
+      });
+
+      window.addEventListener("blur", () => {
+        input.fire = false;
+        input.down = false;
+        input.pointerId = null;
+        input.target = null;
+        for (const k in keys) keys[k] = false;
       });
 
       startBtn.addEventListener("click", () => {
@@ -2095,6 +2622,7 @@
           `Ho salvato ${rescued}/5 cuccioli con Rory! 🚁🐶 ` +
           `Tempo: ${Math.round(time)}s, panico max ${Math.round(stats.maxPanic)}%, ` +
           `predatori storditi ${stats.enemiesStunned}. Prova anche tu!`;
+
         const url = window.location.href;
 
         if (navigator.share) {
@@ -2109,7 +2637,7 @@
           try {
             await navigator.clipboard.writeText(text + " " + url);
             shareBtn.textContent = "COPIATO ✓";
-            setTimeout(() => shareBtn.textContent = "CONDIVIDI 📣", 1500);
+            setTimeout(() => (shareBtn.textContent = "CONDIVIDI 📣"), 1500);
           } catch (err) {
             alert(text + "\n\n" + url);
           }
@@ -2118,9 +2646,35 @@
 
       shareBtn.addEventListener("click", shareResult);
 
-      // avvio
+      // ----------------------
+      // Loop
+      // ----------------------
+      function frame(ts) {
+        if (!lastTimestamp) lastTimestamp = ts;
+        const dt = Math.min((ts - lastTimestamp) / 1000, 0.033);
+        lastTimestamp = ts;
+
+        animTime += dt;
+
+        if (running && !won) {
+          update(dt);
+        } else {
+          heli.rotor += dt * 8;
+          updateParticles(dt);
+        }
+
+        updateCamera(dt);
+        draw();
+
+        requestAnimationFrame(frame);
+      }
+
+      window.addEventListener("resize", resize);
+      window.addEventListener("orientationchange", resize);
+
+      resize();
       resetGame();
-      requestAnimationFrame(loop);
+      requestAnimationFrame(frame);
     })();
   </script>
 </body>
